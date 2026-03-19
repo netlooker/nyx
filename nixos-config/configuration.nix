@@ -22,14 +22,11 @@
   # VMware guest additions for seamless host integration
   virtualisation.vmware.guest.enable = true;
 
-  # Sub-agent sandboxing engine for NemoClaw/OpenShell
-  virtualisation.docker.enable = true;
-
   # Ensure the primary user has sudo and network setup
   users.users.agent = {
     isNormalUser = true;
     description = "NemoClaw Agent Primary User";
-    extraGroups = [ "networkmanager" "wheel" "docker" ];
+    extraGroups = [ "networkmanager" "wheel" ];
     initialPassword = "123"; # Temporary password, change immediately!
   };
 
