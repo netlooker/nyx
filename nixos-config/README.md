@@ -84,4 +84,24 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 ---
 
 ## Phase 3: The NemoClaw AI Agent Environment
-*(Documentation for Phase 3 will be added upon completion of the Python/Node environment setup.)*
+
+To keep the base NixOS installation totally pristine, the agent dependencies are isolated inside a standard Nix `devShell` located in the `nemoclaw_env/` directory.
+
+### The Hybrid Architecture
+Because the Node.js `npm` ecosystem can be incredibly hostile to pure declarative Nix evaluation, we adopted a pragmatic "hybrid" approach:
+
+1. **Pure Toolchains:** `flake.nix` forcefully injects exact, reproducible versions of Python 3.11, NodeJS LTS, and the C++ compiling toolchain (`cmake`, `gcc`, `pkg-config`) into your path.
+2. **Impure Dependencies:** The shell intentionally avoids package manager abstractions like `poetry2nix`. You can run `npm install` or `pip install` entirely natively. Any C++ bindings (like `llama.cpp`) will build perfectly against the Nix-sandboxed C++ compilers natively on your `aarch64` M4 Pro hardware.
+3. **Direnv Integration:** The provided `.envrc` uses `layout python3` to automatically invoke a local Python `.venv` the moment you enter the directory.
+
+### Initialization & Usage
+```bash
+cd nemoclaw_env/
+
+# If direnv is installed, authorize it once:
+direnv allow
+
+# The environment is now perfectly isolated!
+npm install
+pip install "nemoclaw>=1.0.0"
+```
