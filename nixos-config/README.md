@@ -56,6 +56,12 @@ Once the raw VM is partitioned and mounted, this repository's Flake completely t
 1. `flake.nix`: Targets the `aarch64-linux` architecture and explicitly tracks the `nixos-unstable` branch to ensure we have access to the absolute latest ML/AI tooling required by NemoClaw.
 2. `configuration.nix`: Declares the inner OS rules, including bridging VMware Fusion tools seamlessly, configuring user permissions, pre-baking developer CLI utilities, and natively importing the host Mac's SSH keys for passwordless remote administration.
 
+### Managing Secrets (Out-of-Band)
+To ensure that repository forks and open-sourcing never expose sensitive data (SSH Public Host IDs or API Tokens), this configuration strictly loads authorization data dynamically from a `.gitignore`'d folder.
+
+**Before applying this configuration on a new machine:**
+You MUST manually create `secrets/authorized_keys` alongside `configuration.nix` inside `/etc/nixos/` prior to building. The Flake expects these files to be present on the raw disk.
+
 ### Executing the Initial Install
 To bootstrap the newly partitioned drive using this repository:
 ```bash
