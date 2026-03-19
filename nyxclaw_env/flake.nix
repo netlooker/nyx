@@ -1,5 +1,5 @@
 {
-  description = "Pragmatic NemoClaw Hybrid Environment";
+  description = "Pragmatic NyxClaw (OpenClaw) Environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -12,7 +12,7 @@
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        name = "nemoclaw-env";
+        name = "nyxclaw-env";
         
         buildInputs = with pkgs; [
           # 1. Python Toolchain
@@ -32,7 +32,7 @@
 
         shellHook = ''
           echo "==========================================================="
-          echo " 🤖 Welcome to the NemoClaw Agent Environment "
+          echo " 🤖 Welcome to the NyxClaw Agent Environment "
           echo " Python: $(python3 --version)"
           echo " Node: $(node --version)"
           echo "==========================================================="

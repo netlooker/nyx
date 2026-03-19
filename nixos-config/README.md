@@ -1,6 +1,6 @@
-# Declarative NemoClaw NixOS Agent
+# Declarative NyxClaw NixOS Agent
 
-This repository contains the pure Nix Flake configuration for the `aarch64` NemoClaw AI Agent environment optimized for VMware Fusion on Apple Silicon.
+This repository contains the pure Nix Flake configuration for the `aarch64` NyxClaw (OpenClaw) AI Agent environment optimized for VMware Fusion on Apple Silicon.
 
 ## Phase 1: Bootstrapping the VM (Manual Steps)
 
@@ -53,7 +53,7 @@ nixos-generate-config --root /mnt
 
 Once the raw VM is partitioned and mounted, this repository's Flake completely takes over. The deployment is entirely declarative, leveraging exactly two foundational files to define the OS:
 
-1. `flake.nix`: Targets the `aarch64-linux` architecture and explicitly tracks the `nixos-unstable` branch to ensure we have access to the absolute latest ML/AI tooling required by NemoClaw.
+1. `flake.nix`: Targets the `aarch64-linux` architecture and explicitly tracks the `nixos-unstable` branch to ensure we have access to the absolute latest ML/AI tooling required by OpenClaw.
 2. `configuration.nix`: Declares the inner OS rules, including bridging VMware Fusion tools seamlessly, configuring user permissions, pre-baking developer CLI utilities, and natively importing the host Mac's SSH keys for passwordless remote administration.
 
 ### Managing Secrets (Out-of-Band)
@@ -76,16 +76,16 @@ nixos-install --flake /mnt/etc/nixos#nixos
 ```
 
 ### Applying Future Updates
-After the system completes installation and reboots into its final state, you never need to use `nixos-install` again. To apply any declarative changes made to `configuration.nix` or NemoClaw configurations in the future, simply run:
+After the system completes installation and reboots into its final state, you never need to use `nixos-install` again. To apply any declarative changes made to `configuration.nix` or NyxClaw configurations in the future, simply run:
 ```bash
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
 ```
 
 ---
 
-## Phase 3: The NemoClaw AI Agent Environment
+## Phase 3: The NyxClaw AI Agent Environment
 
-To keep the base NixOS installation totally pristine, the agent dependencies are isolated inside a standard Nix `devShell` located in the `nemoclaw_env/` directory.
+To keep the base NixOS installation totally pristine, the agent dependencies are isolated inside a standard Nix `devShell` located in the `nyxclaw_env/` directory.
 
 ### The Hybrid Architecture
 Because the Node.js `npm` ecosystem can be incredibly hostile to pure declarative Nix evaluation, we adopted a pragmatic "hybrid" approach:
@@ -96,12 +96,12 @@ Because the Node.js `npm` ecosystem can be incredibly hostile to pure declarativ
 
 ### Initialization & Usage
 ```bash
-cd nemoclaw_env/
+cd nyxclaw_env/
 
 # If direnv is installed, authorize it once:
 direnv allow
 
 # The environment is now perfectly isolated!
 npm install
-pip install "nemoclaw>=1.0.0"
+pip install "openclaw>=1.0.0"
 ```
