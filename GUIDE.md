@@ -38,4 +38,67 @@ pnpm start --help
 
 From here, you can link the agent to your designated messaging channels (Telegram, WhatsApp, Signal) or interface with it securely via the local terminal `pnpm start tui`!
 
+## Step-by-Step Configuration Manual
+
+Ready to deploy your first agent? Follow these steps to connect a local AI model and deploy it to a messenger!
+
+### Step 1: Initialize the Environment
+Open your terminal and enter the declarative NyxClaw environment. This will automatically scaffold your private configuration file.
+```bash
+cd nyxclaw_env
+nix develop
+```
+*You should see `🔑 First time setup: Bootstrapping generic config into secrets/` printed to your console.*
+
+### Step 2: Open Your Private Configuration
+Open the newly created configuration file in your favorite text editor. Note that this file is natively git-ignored, keeping your secrets safe.
+```bash
+nano secrets/openclaw.json5
+```
+
+### Step 3: Choose an AI Provider
+To use **Ollama** locally, locate the `models.providers.ollama` block and uncomment it by removing the `//` slashes:
+```json5
+  models: {
+    mode: 'merge',
+    providers: {
+      ollama: {
+        baseUrl: 'http://localhost:11434/v1',
+        api: 'openai-completions',
+        apiKey: 'ollama',
+        models: [ { id: 'llama3', name: 'Llama 3 (Ollama)' } ],
+      },
+    },
+  },
+```
+*(Make sure your Ollama instance is actually running natively!)*
+
+Next, set this model as your agent's default near the top of the file under `agents.defaults`:
+```json5
+      sandbox: {
+        mode: 'off',
+      },
+      model: { primary: 'ollama/llama3' },
+```
+
+### Step 4: Choose a Delivery Channel
+To deploy this agent to **Telegram**, locate the `channels.telegram` block and uncomment it. Add your Bot Token from BotFather:
+```json5
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: '123456789:YOUR_SECRET_TOKEN_HERE',
+      dmPolicy: 'pairing',
+    },
+  },
+```
+
+### Step 5: Start the Agent
+From inside the Nix shell, start the OpenClaw gateway:
+```bash
+cd openclaw
+pnpm start gateway
+```
+Your agent is now alive! Send a message to your Telegram bot. Because `dmPolicy` is set to `'pairing'`, the bot will reply with a secure pairing code. Look at your terminal for the approval prompt to securely bind your account.
+
 Enjoy your lightning-fast, highly secure, Docker-free AI native operating system!
