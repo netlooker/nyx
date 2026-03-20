@@ -101,4 +101,22 @@ pnpm start gateway
 ```
 Your agent is now alive! Send a message to your Telegram bot. Because `dmPolicy` is set to `'pairing'`, the bot will reply with a secure pairing code. Look at your terminal for the approval prompt to securely bind your account.
 
-Enjoy your lightning-fast, highly secure, Docker-free AI native operating system!
+### 6. Production Docker Deployment (Clone & Bake)
+Ready to host the agent on a VPS, Kubernetes, or cloud provider? NyxClaw ships with a native `Dockerfile` designed for an immutable "Clone & Bake" workflow.
+
+1. First, [Clone] the repository and generate your local configuration:
+   ```bash
+   cp nyxclaw_env/openclaw.example.json5 nyxclaw_env/secrets/openclaw.json5
+   ```
+2. Modify your configurations (API keys, Ollama server mappings, Telegram hook) exactly as outlined in Step 3 & 4.
+3. Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container! Navigate to the **root** of your repository:
+   ```bash
+   cd nyx
+   docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
+   ```
+4. Run your immutable agent container anywhere! It will have standard Docker bridge network access out-of-the-box (allowing it to hit public APIs or local LAN APIs like `192.168.x.x:11434` for Ollama):
+   ```bash
+   docker run -d --name nyxclaw-bot nyxclaw-agent
+   ```
+
+Enjoy your lightning-fast, highly secure, Docker-free native shell, augmented with the ultimate containerized deployment pipeline!
