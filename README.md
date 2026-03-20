@@ -23,7 +23,7 @@ Our deployment philosophy is radically simple: **Clone, Config, and Bake.**
 
 1. **Clone:** Fork or clone this repository to your local machine.
 2. **Config:** Add your local inference nodes (like Ollama or LLama.cpp) and messaging channels (Telegram, WhatsApp) into your heavily-ignored `secrets/openclaw.json5` configuration.
-3. **Bake the OS:** Navigate into `nyxclaw_env` and run `nix build .#base-image && docker load -i result`. This uses pure Nix to dynamically generate a mathematically pristine OS base containing your compilers and a cryptographic `bombon` SBOM.
+3. **Bake the OS:** In the root directory, run `docker run --rm -v $(pwd):/app -w /app/nyxclaw_env nixos/nix:latest sh -c "mkdir -p /etc/nix && echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf && nix build .#base-image && cp -L result nyxclaw-base-image.tar.gz"` followed by `docker load -i nyxclaw_env/nyxclaw-base-image.tar.gz`. This generates a mathematically pristine OS base containing your compilers and a cryptographic `bombon` SBOM.
 4. **Bake the Agent:** Return to the root and run `docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .`. This imperative build seamlessly inherits your pure OS!
 5. **Run:** Deploy the container anywhere! Map the internal `/data` volume to your host to ensure the agent's memory, downloaded files, and SQLite databases persist forever between reboots.
 

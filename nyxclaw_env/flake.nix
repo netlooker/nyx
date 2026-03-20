@@ -31,6 +31,9 @@
             pkg-config
             gnumake
             syft
+            git
+            gnutar
+            gzip
           ];
 
           # Combine the paths cleanly
@@ -42,11 +45,26 @@
           # Generate the cryptographically pure SBOM using Bombon
           baseSbom = bombon.lib.${system}.buildBom sbomContent {};
 
+          # Wrap the generated .json file cleanly into a directory to satisfy dockerTools
+          sbomDir = pkgs.runCommand "sbom-dir" {} ''
+            mkdir -p $out/app
+            cp ${baseSbom} $out/app/sbom-base.json
+          '';
+
+          # Pure Nix images lack standard FHS paths that Node.js and npm scripts expect:
+          # - `/bin/sh` for child_process.exec()
+          # - `/usr/bin/env` for shebang lines (#!/usr/bin/env node)
+          fhsCompat = pkgs.runCommand "fhs-compat" {} ''
+            mkdir -p $out/bin $out/usr/bin
+            ln -s ${pkgs.bashInteractive}/bin/bash $out/bin/sh
+            ln -s ${pkgs.coreutils}/bin/env $out/usr/bin/env
+          '';
+
         in {
           base-image = pkgs.dockerTools.buildLayeredImage {
             name = "nyxclaw-base-image";
             tag = "latest";
-            contents = [ sbomContent baseSbom pkgs.coreutils ]; # Include coreutils for /usr/bin/env compatibility
+            contents = [ sbomContent sbomDir fhsCompat pkgs.coreutils ];
             config = {
               Cmd = [ "/bin/bash" ];
               Env = [

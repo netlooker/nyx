@@ -40,7 +40,7 @@
   // Warning: Non-loopback bindings REQUIRE an auth password!
   // --------------------------------------------------------------------------
   gateway: {
-    // bind: '0.0.0.0',
+    // bind: 'lan',  // Use 'lan' to expose WebUI outside Docker. Other modes: loopback, auto, custom, tailnet
     // controlUi: { enabled: true },
     // auth: { mode: 'password', password: 'change_me_to_a_secure_password' },
   },

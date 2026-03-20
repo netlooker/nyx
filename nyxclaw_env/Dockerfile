@@ -9,10 +9,17 @@ WORKDIR /app
 # This natively captures your custom `secrets/openclaw.json5` configuration!
 COPY . /app
 
-# The pure Unix environment is natively provided by the Base Layer (Node, Python, C++ Compilers).
+# The Unix environment is generated natively by the Base Layer.
+# We assign a valid home directory since mathematically pure Nix layers do not ship a traditional `/root` user.
+ENV HOME=/app
+
+# Suppress all interactive prompts so pnpm can forcefully overwrite injected Mac modules directories
+ENV CI=true
+
 # Execute pnpm identically to how you would structure standard Docker workflows!
-# The `syft` binary scans the app and outputs a secondary dynamic SBOM
-RUN cd nyxclaw_env/openclaw && pnpm install && pnpm build && cd ../.. && syft scan dir:./nyxclaw_env/openclaw -o cyclonedx-json=/app/sbom-app.json
+# Note: Since the Nix OS mathematically guarantees our pnpm version inherently, we purge the Corepack 
+# `packageManager` directive from package.json to avoid FHS binary dynamic linker `ENOENT` crashing!
+RUN cd nyxclaw_env/openclaw && node -e "let fs=require('fs'); let p=JSON.parse(fs.readFileSync('package.json')); delete p.packageManager; fs.writeFileSync('package.json', JSON.stringify(p, null, 2))" && pnpm install && pnpm build && cd ../.. && syft scan dir:./nyxclaw_env/openclaw -o cyclonedx-json=/app/sbom-app.json
 
 # Hardcode the OpenClaw configuration path specifically targeting the baked-in config
 ENV OPENCLAW_CONFIG_PATH=/app/nyxclaw_env/secrets/openclaw.json5
