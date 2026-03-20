@@ -43,6 +43,13 @@
     // bind: 'lan',  // Use 'lan' to expose WebUI outside Docker. Other modes: loopback, auto, custom, tailnet
     // controlUi: { enabled: true },
     // auth: { mode: 'password', password: 'change_me_to_a_secure_password' },
+    // http: {
+    //   endpoints: {
+    //     chatCompletions: {
+    //       enabled: true // Enable OpenAI-compatible HTTP API
+    //     }
+    //   }
+    // }
   },
 
   // --------------------------------------------------------------------------
