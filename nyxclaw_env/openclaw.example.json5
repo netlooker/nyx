@@ -34,6 +34,18 @@
   },
 
   // --------------------------------------------------------------------------
+  // GATEWAY & WEB UI
+  // By default, OpenClaw only listens on localhost (127.0.0.1). 
+  // To access the Web UI from outside the Docker container, bind to 0.0.0.0.
+  // Warning: Non-loopback bindings REQUIRE an auth password!
+  // --------------------------------------------------------------------------
+  gateway: {
+    // bind: '0.0.0.0',
+    // controlUi: { enabled: true },
+    // auth: { mode: 'password', password: 'change_me_to_a_secure_password' },
+  },
+
+  // --------------------------------------------------------------------------
   // LOCAL INFERENCE (Ollama, LM Studio, vLLM, etc)
   // Maps any OpenAI-compatible completions API into your agent!
   // --------------------------------------------------------------------------

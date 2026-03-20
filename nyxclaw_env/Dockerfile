@@ -18,6 +18,9 @@ RUN nix develop ./nyxclaw_env --command bash -c "cd nyxclaw_env/openclaw && pnpm
 # Hardcode the OpenClaw configuration path specifically targeting the baked-in config
 ENV OPENCLAW_CONFIG_PATH=/app/nyxclaw_env/secrets/openclaw.json5
 
+# Expose the default OpenClaw Gateway & WebUI port
+EXPOSE 18789
+
 # Overwrite the container entrypoint to automatically trap any executed commands inside the safe Nix shell
 ENTRYPOINT ["nix", "develop", "./nyxclaw_env", "--command", "bash", "-c"]
 

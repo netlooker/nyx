@@ -28,10 +28,26 @@ docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
 *Behind the scenes, the Dockerfile triggers the absolute reproducibility of a pure Nix shell to compile your agent natively without any host pollution!*
 
 ### Step 3: Start the Agent
-Run your immutable agent container anywhere! It possesses standard bridge networking out-of-the-box (allowing it to hit public internet APIs or route to a local `http://192.168.1.x:11434` Ollama instance):
-```bash
-docker run -d --name nyxclaw-bot nyxclaw-agent
-```
+4. Run your immutable agent container. 
+   
+   **Standard Gateway (Backgrounded):**
+   ```bash
+   docker run -d --name nyxclaw-bot nyxclaw-agent
+   ```
+
+   **Web UI Mode (Browser Interface):** 
+   If you uncommented the `gateway` block in `openclaw.json5` (binding to `0.0.0.0` and setting a password), map port `18789` to your host to access the Web UI:
+   ```bash
+   docker run -d -p 18789:18789 --name nyxclaw-bot nyxclaw-agent
+   ```
+   *Navigate to `http://localhost:18789` in your browser and use the password you configured to authorize!*
+
+   **Interactive Terminal / TUI Mode:** 
+   If you didn't configure a messenger like Telegram, you can run the agent locally via its incredible Terminal UI (skip the `-d` and use `-it`, and override the default `gateway` command with `tui`):
+   ```bash
+   docker run -it nyxclaw-agent pnpm start tui
+   ```
+
 If using Telegram, send a message to your bot. Check the container logs for the pairing code to securely bind your account:
 ```bash
 docker logs -f nyxclaw-bot
