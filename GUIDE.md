@@ -53,16 +53,16 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
    ```
 
    **Web UI Mode (Browser Interface):** 
-   If you uncommented the `gateway` block in `openclaw.json5` (binding to `0.0.0.0` and setting a password), map port `18789` to your host to access the Web UI:
+   If you enabled the `gateway` block in `openclaw.json5` (setting `bind: 'lan'` and a password), map port `18789` to your host to access the Web UI:
    ```bash
    docker run -d -v ./nyx-data:/data -p 18789:18789 --name nyxclaw-bot nyxclaw-agent
    ```
    *Navigate to `http://localhost:18789` in your browser and use the password you configured to authorize!*
 
    **Interactive Terminal / TUI Mode:** 
-   If you didn't configure a messenger like Telegram, you can run the agent locally via its incredible Terminal UI (skip the `-d` and use `-it`, and override the default `gateway` command with `tui`):
+   If you didn't configure a messenger like Telegram, you can run the agent locally via its Terminal UI:
    ```bash
-   docker run -it -v ./nyx-data:/data nyxclaw-agent pnpm start tui
+   docker run -it -v ./nyx-data:/data nyxclaw-agent bash -c "cd nyxclaw_env/openclaw && pnpm start tui"
    ```
 
 If using Telegram, send a message to your bot. Check the container logs for the pairing code to securely bind your account:
@@ -74,6 +74,12 @@ docker logs -f nyxclaw-bot
 
 ## Advanced: Local Native Development
 For AI engineers developing custom capabilities or experimenting with the framework locally (without rebuilding Docker containers constantly), NyxClaw provides a pure development harness.
+
+### Note for Nix Purists
+If you are installing Nix for the first time on your host machine to participate in the local development harness, we recommend using the official deterministic installer:
+```bash
+curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install
+```
 
 ### Enter the Environment
 Navigate to the `nyxclaw_env` directory and spawn the Nix shell:
