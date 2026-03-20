@@ -11,15 +11,23 @@ By abandoning traditional, bloated Docker containers in favor of Nix's native `d
 
 To keep the system architecture clean, this repository is split into two primary environments:
 
-### 1. The NyxClaw Agent Environment (`/nyxclaw_env`)
-This is the core of the project. It contains the Nix Flake necessary to bootstrap the OpenClaw agent natively, compile its dependencies, and run it. It also includes the `Dockerfile` for our "Clone & Bake" production deployment pipeline.
+# NyxClaw 🐾
 
-👉 **Start Here:** Read the [NyxClaw Declarative Guide](GUIDE.md) to learn how to instantly launch OpenClaw using `nix develop` or deploy it using Docker.
+Welcome to the **NyxClaw** repository—a fully declarative, mathematically reproducible, and securely sandboxed integration of the [OpenClaw](https://github.com/openclaw/openclaw) AI agent framework.
 
-### 2. The NixOS System Configuration (`/nixos-config`)
-For users who want to run NyxClaw on a dedicated, bare-metal virtual machine, we provide a mathematically reproducible NixOS system configuration optimized for VMware Fusion on Apple Silicon.
+NyxClaw utilizes the massive power of **Nix** strictly to build the ultimate, immutable **Docker Image**. This gives you the speed and usability of standard Docker deployments, but completely eliminates traditional Docker build rot and vulnerabilities!
 
-👉 **System Setup:** Read the [NixOS Installation Manual](nixos-config/README.md) for instructions on bootstrapping the base operating system from a live USB.
+## The User Story (Clone & Bake)
+
+Our deployment philosophy is radically simple: **Clone, Config, and Bake.** 
+
+1. **Clone:** Fork or clone this repository to your local machine.
+2. **Config:** Add your local inference nodes (like Ollama or LLama.cpp) and messaging channels (Telegram, WhatsApp) into your heavily-ignored `secrets/openclaw.json5` configuration.
+3. **Bake:** Run the "magic" Docker build command. The container uses Nix to deterministically compile the entire openclaw agent from scratch and permanently seals your configuration inside the Docker artifact. 
+
+The resulting Docker Image can be pushed to any cloud provider or orchestrator, fully equipped with native bridge networking to communicate with your APIs!
+
+👉 **Deploy Now:** Read the [NyxClaw Deployment Manual](GUIDE.md) to instantly build your agent!
 
 ---
 *Built securely for the modern AI engineering stack.*

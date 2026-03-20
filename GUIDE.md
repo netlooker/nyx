@@ -1,122 +1,60 @@
-# NyxClaw: The Declarative AI Agent Environment
+# NyxClaw: Cloud-Native AI Agent Deployment
 
-NyxClaw is a native, declarative integration of the [OpenClaw](https://github.com/openclaw/openclaw) agent framework powered by [Nix](https://nixos.org/). It replaces the heavy reliance on Docker containers and NVIDIA orchestrators by utilizing Nix's native `devShell` capabilities to provide a fully sandboxed, reproducible execution environment for your AI agents.
+NyxClaw is a highly-optimized, declarative environment for deploying the [OpenClaw](https://github.com/openclaw/openclaw) agent framework natively as an immutable Docker container. 
 
-## Getting Started
+Instead of dealing with unpredictable toolchains or complex Dockerfiles, NyxClaw uses **Nix** under the hood to mathematically calculate and compile your agent's dependencies into a perfectly sealed, production-ready artifact that you can deploy anywhere!
 
-### 1. Enter the Environment
-Navigate to the `nyxclaw_env` directory. If you have `direnv` installed (and allowed via `direnv allow`), the environment will automatically load! Otherwise, manually spawn the declarative shell:
+## The "Clone & Bake" Pipeline
+
+Ready to deploy your agent to a VPS, Kubernetes, or cloud provider? NyxClaw uses an immutable "Clone & Bake" workflow.
+
+### Step 1: Clone & Configure
+First, clone the repository and scaffold your local configuration file. 
+```bash
+git clone https://github.com/netlooker/nyx.git
+cd nyx
+cp nyxclaw_env/openclaw.example.json5 nyxclaw_env/secrets/openclaw.json5
+```
+
+Open `secrets/openclaw.json5` in your editor. This file is natively git-ignored to keep your secrets safe.
+* **Add Providers**: Uncomment local nodes (`models.providers.ollama`) or add API keys (`openai`, `anthropic`).
+* **Add Channels**: Uncomment `channels.telegram` and add your `botToken`.
+
+### Step 2: Bake the Container
+Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container!
+```bash
+docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
+```
+*Behind the scenes, the Dockerfile triggers the absolute reproducibility of a pure Nix shell to compile your agent natively without any host pollution!*
+
+### Step 3: Start the Agent
+Run your immutable agent container anywhere! It possesses standard bridge networking out-of-the-box (allowing it to hit public internet APIs or route to a local `http://192.168.1.x:11434` Ollama instance):
+```bash
+docker run -d --name nyxclaw-bot nyxclaw-agent
+```
+If using Telegram, send a message to your bot. Check the container logs for the pairing code to securely bind your account:
+```bash
+docker logs -f nyxclaw-bot
+```
+
+---
+
+## Advanced: Local Native Development
+For AI engineers developing custom capabilities or experimenting with the framework locally (without rebuilding Docker containers constantly), NyxClaw provides a pure development harness.
+
+### Enter the Environment
+Navigate to the `nyxclaw_env` directory and spawn the Nix shell:
 ```bash
 cd nyxclaw_env
 nix develop
 ```
-*Note: The environment is cross-platform optimized and compiles cleanly on both your local MacOS host (`aarch64-darwin`) and the production NixOS VM (`aarch64-linux`).*
+*Nix provides the exact underlying C++ compilers and interpreters (`python3`, `nodejs`, `pnpm`), locking local development parity with the Docker container.*
 
-### 2. Managing Dependencies
-Unlike extremely rigid Nix python/node derivations, NyxClaw takes a pragmatic approach. Nix provides the underlying C++ compilers (`gcc`, `cmake`, `pkg-config`) and exact interpreters (`python3`, `nodejs`, `pnpm`), but leaves you free to use standard package managers sequentially!
-
-*   **Node.js**: You can freely run `pnpm install` inside the `openclaw` directory.
-*   **Python**: `direnv` automatically scaffolds a virtual environment (`.venv`) allowing for standard `pip install` workflows for your ML models.
-
-### 3. The Native Nix OS Sandbox (No Docker Required)
-By default, OpenClaw securely sandboxes external code execution by spinning up Docker containers (`docker run`). 
-
-NyxClaw elegantly bypasses this overhead configuration! When you instantiate the shell via `nix develop` (or seamlessly enter via `direnv`), the Nix `shellHook` binds `<project>/secrets/openclaw.json5` safely to your environment using the native `OPENCLAW_CONFIG_PATH` flag.
-
-If you don't have a configuration file, Nix will automatically copy `openclaw.example.json5` into your hidden `secrets/` folder during startup! 
-
-*   **Zero Leakage:** The `secrets/` directory is locally ignored by Git. You can safely add your API keys right into `secrets/openclaw.json5`.
-*   **Sandbox Disabled (`mode: 'off'`):** The default template disables Docker, relying squarely on the boundaries injected by our Nix environment. When your AI agent attempts to evaluate shell codes, it securely traps itself inside the compiler chains and node packages provided strictly by the pure environment.
-*   **JSON5 Superpowers:** Unlike standard JSON, the `json5` format allows you to write single-line comments (`// API Key here`), use single quotes (`'off'`), and safely leave unquoted keys! This makes configuring OpenClaw manually vastly superior and error-resistant.
-
-### 4. Launching the Agent
-Once inside the Nix shell with Node dependencies compiled, you can execute the agent natively:
-```bash
-cd nyxclaw_env/openclaw
-pnpm start --help
-```
-
-From here, you can link the agent to your designated messaging channels (Telegram, WhatsApp, Signal) or interface with it securely via the local terminal `pnpm start tui`!
-
-## Step-by-Step Configuration Manual
-
-Ready to deploy your first agent? Follow these steps to connect a local AI model and deploy it to a messenger!
-
-### Step 1: Initialize the Environment
-Open your terminal and enter the declarative NyxClaw environment. This will automatically scaffold your private configuration file.
-```bash
-cd nyxclaw_env
-nix develop
-```
-*You should see `🔑 First time setup: Bootstrapping generic config into secrets/` printed to your console.*
-
-### Step 2: Open Your Private Configuration
-Open the newly created configuration file in your favorite text editor. Note that this file is natively git-ignored, keeping your secrets safe.
-```bash
-nano secrets/openclaw.json5
-```
-
-### Step 3: Choose an AI Provider
-To use **Ollama** locally, locate the `models.providers.ollama` block and uncomment it by removing the `//` slashes:
-```json5
-  models: {
-    mode: 'merge',
-    providers: {
-      ollama: {
-        baseUrl: 'http://localhost:11434/v1',
-        api: 'openai-completions',
-        apiKey: 'ollama',
-        models: [ { id: 'llama3', name: 'Llama 3 (Ollama)' } ],
-      },
-    },
-  },
-```
-*(Make sure your Ollama instance is actually running natively!)*
-
-Next, set this model as your agent's default near the top of the file under `agents.defaults`:
-```json5
-      sandbox: {
-        mode: 'off',
-      },
-      model: { primary: 'ollama/llama3' },
-```
-
-### Step 4: Choose a Delivery Channel
-To deploy this agent to **Telegram**, locate the `channels.telegram` block and uncomment it. Add your Bot Token from BotFather:
-```json5
-  channels: {
-    telegram: {
-      enabled: true,
-      botToken: '123456789:YOUR_SECRET_TOKEN_HERE',
-      dmPolicy: 'pairing',
-    },
-  },
-```
-
-### Step 5: Start the Agent
-From inside the Nix shell, start the OpenClaw gateway:
+### Run Natively
+Once inside the Nix shell with Node dependencies compiled (`pnpm install && pnpm build`), you can execute the agent natively without Docker:
 ```bash
 cd openclaw
 pnpm start gateway
 ```
-Your agent is now alive! Send a message to your Telegram bot. Because `dmPolicy` is set to `'pairing'`, the bot will reply with a secure pairing code. Look at your terminal for the approval prompt to securely bind your account.
 
-### 6. Production Docker Deployment (Clone & Bake)
-Ready to host the agent on a VPS, Kubernetes, or cloud provider? NyxClaw ships with a native `Dockerfile` designed for an immutable "Clone & Bake" workflow.
-
-1. First, [Clone] the repository and generate your local configuration:
-   ```bash
-   cp nyxclaw_env/openclaw.example.json5 nyxclaw_env/secrets/openclaw.json5
-   ```
-2. Modify your configurations (API keys, Ollama server mappings, Telegram hook) exactly as outlined in Step 3 & 4.
-3. Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container! Navigate to the **root** of your repository:
-   ```bash
-   cd nyx
-   docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
-   ```
-4. Run your immutable agent container anywhere! It will have standard Docker bridge network access out-of-the-box (allowing it to hit public APIs or local LAN APIs like `192.168.x.x:11434` for Ollama):
-   ```bash
-   docker run -d --name nyxclaw-bot nyxclaw-agent
-   ```
-
-Enjoy your lightning-fast, highly secure, Docker-free native shell, augmented with the ultimate containerized deployment pipeline!
+Enjoy your lightning-fast, highly secure, natively compiled agent framework!
