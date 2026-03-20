@@ -21,14 +21,20 @@ Open `secrets/openclaw.json5` in your editor. This file is natively git-ignored 
 * **Add Channels**: Uncomment `channels.telegram` and add your `botToken`.
 
 ### Step 2: Bake the Container
-Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container!
-```bash
-docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
-```
-*Behind the scenes, the Dockerfile triggers the absolute reproducibility of a pure Nix shell to compile your agent natively without any host pollution!*
+3. Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container! Navigate to the **root** of your repository:
+   ```bash
+   cd nyx
+   docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
+   ```
+   *Behind the scenes, the Dockerfile triggers the absolute reproducibility of a pure Nix shell to compile your agent natively without any host pollution! It also embeds an SBOM inside `/app/sbom.json`.*
+
+4. **(Optional) Security Auditing:** You can extract the generated Software Bill of Materials (SBOM) from your baked image using a single command to feed into your vulnerability scanners (like Trivy or Grype):
+   ```bash
+   docker run --rm --entrypoint cat nyxclaw-agent /app/sbom.json > sbom.json
+   ```
 
 ### Step 3: Start the Agent
-4. Run your immutable agent container. NyxClaw uses `/data` internally to store all agent memories, SQLite databases, and downloaded files. We map this to `./nyx-data` on your host so your agent never suffers amnesia between restarts!
+5. Run your immutable agent container. NyxClaw uses `/data` internally to store all agent memories, SQLite databases, and downloaded files. We map this to `./nyx-data` on your host so your agent never suffers amnesia between restarts!
    
    **Standard Gateway (Backgrounded):**
    ```bash

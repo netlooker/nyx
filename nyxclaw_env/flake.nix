@@ -29,12 +29,14 @@
               nodejs # Latest native version
               nodePackages.pnpm
               
-              # 3. Base compilation systems required for native ARM AI compilation (llama.cpp / bindings)
+              # 3. Base compilation systems required for native ARM AI compilation
               cmake
               gcc
               pkg-config
-              # gnumake is not required as make is available, but added if needed. On Darwin, use gnumake.
               gnumake
+
+              # 4. Security Scanning
+              syft
             ];
 
             shellHook = ''

@@ -12,8 +12,8 @@ RUN mkdir -p /etc/nix && echo "experimental-features = nix-command flakes" >> /e
 COPY . /app
 
 # Pre-build the OpenClaw AI agent natively INSIDE the isolated Nix development shell
-# This guarantees that Node/Python versions and compilation chains exactly match the host OS blueprint
-RUN nix develop ./nyxclaw_env --command bash -c "cd nyxclaw_env/openclaw && pnpm install && pnpm build"
+# After compilation, Syft generates a CycloneDX Software Bill of Materials (SBOM) for the entire artifact
+RUN nix develop ./nyxclaw_env --command bash -c "cd nyxclaw_env/openclaw && pnpm install && pnpm build && cd ../.. && syft scan dir:./nyxclaw_env/openclaw -o cyclonedx-json=/app/sbom.json"
 
 # Hardcode the OpenClaw configuration path specifically targeting the baked-in config
 ENV OPENCLAW_CONFIG_PATH=/app/nyxclaw_env/secrets/openclaw.json5
