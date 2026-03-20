@@ -26,7 +26,8 @@ NyxClaw elegantly bypasses this overhead configuration! When you instantiate the
 If you don't have a configuration file, Nix will automatically copy `openclaw.example.json5` into your hidden `secrets/` folder during startup! 
 
 *   **Zero Leakage:** The `secrets/` directory is locally ignored by Git. You can safely add your API keys right into `secrets/openclaw.json5`.
-*   **Sandbox Disabled (`mode: "off"`):** The default template disables Docker, relying squarely on the boundaries injected by our Nix environment. When your AI agent attempts to evaluate shell codes, it securely traps itself inside the compiler chains and node packages provided strictly by the pure environment.
+*   **Sandbox Disabled (`mode: 'off'`):** The default template disables Docker, relying squarely on the boundaries injected by our Nix environment. When your AI agent attempts to evaluate shell codes, it securely traps itself inside the compiler chains and node packages provided strictly by the pure environment.
+*   **JSON5 Superpowers:** Unlike standard JSON, the `json5` format allows you to write single-line comments (`// API Key here`), use single quotes (`'off'`), and safely leave unquoted keys! This makes configuring OpenClaw manually vastly superior and error-resistant.
 
 ### 4. Launching the Agent
 Once inside the Nix shell with Node dependencies compiled, you can execute the agent natively:

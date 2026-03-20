@@ -3,30 +3,31 @@
 // The `secrets/` directory is automatically ignored by Git to protect your credentials.
 
 {
-  "agents": {
-    "defaults": {
+  agents: {
+    defaults: {
       // --------------------------------------------------------------------------
       // NYXCLAW SANDBOX OVERRIDE:
-      // "mode: off" bypasses OpenClaw's Docker container sandbox. 
+      // "mode: 'off'" bypasses OpenClaw's Docker container sandbox. 
       // Because this agent runs inside a restrictive Nix `devShell`, 
       // Nix itself securely acts as the execution sandbox natively!
       // --------------------------------------------------------------------------
-      "sandbox": {
-        "mode": "off"
-      }
-    }
+      sandbox: {
+        mode: 'off',
+      },
+    },
   },
 
   // --------------------------------------------------------------------------
   // PROVIDER CONFIGURATION
   // Drop your API Keys here safely!
+  // JSON5 allows unquoted keys, trailing commas, and comments!
   // --------------------------------------------------------------------------
-  "providers": {
-    "openai": {
-      // "apiKey": "sk-..."
+  providers: {
+    openai: {
+      // apiKey: 'sk-...',
     },
-    "anthropic": {
-      // "apiKey": "sk-ant-..."
-    }
-  }
+    anthropic: {
+      // apiKey: 'sk-ant-...',
+    },
+  },
 }
