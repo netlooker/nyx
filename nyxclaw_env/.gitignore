@@ -1,0 +1,10 @@
+# Dependency directories
+.venv/
+node_modules/
+
+# Secrets / Configuration out of band
+secrets/
+
+# Build artifacts
+openclaw/dist/
+openclaw/node_modules/

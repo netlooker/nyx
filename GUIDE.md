@@ -21,9 +21,12 @@ Unlike extremely rigid Nix python/node derivations, NyxClaw takes a pragmatic ap
 ### 3. The Native Nix OS Sandbox (No Docker Required)
 By default, OpenClaw securely sandboxes external code execution by spinning up Docker containers (`docker run`). 
 
-NyxClaw elegantly bypasses this overhead by configuring OpenClaw's sandbox mode to `"off"` in the global configuration (`~/.openclaw/openclaw.json`). 
+NyxClaw elegantly bypasses this overhead configuration! When you instantiate the shell via `nix develop` (or seamlessly enter via `direnv`), the Nix `shellHook` binds `<project>/secrets/openclaw.json5` safely to your environment using the native `OPENCLAW_CONFIG_PATH` flag.
 
-Instead of Docker, OpenClaw runs natively *inside* our highly-curated Nix `devShell`. This means Nix itself operates as the impenetrable sandbox boundary! When your AI agent attempts to run a shell command or execute code, it is securely trapped within the packages provided exclusively by the Nix environment.
+If you don't have a configuration file, Nix will automatically copy `openclaw.example.json5` into your hidden `secrets/` folder during startup! 
+
+*   **Zero Leakage:** The `secrets/` directory is locally ignored by Git. You can safely add your API keys right into `secrets/openclaw.json5`.
+*   **Sandbox Disabled (`mode: "off"`):** The default template disables Docker, relying squarely on the boundaries injected by our Nix environment. When your AI agent attempts to evaluate shell codes, it securely traps itself inside the compiler chains and node packages provided strictly by the pure environment.
 
 ### 4. Launching the Agent
 Once inside the Nix shell with Node dependencies compiled, you can execute the agent natively:

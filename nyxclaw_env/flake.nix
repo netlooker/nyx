@@ -39,11 +39,20 @@
 
             shellHook = ''
               echo "==========================================================="
-              echo " 🤖 Welcome to the NyxClaw Agent Environment (${system})"
+              echo " 🤖 Welcome to the NyxClaw Agent Environment (''${system})"
               echo " Python: $(python3 --version)"
               echo " Node: $(node --version)"
               echo "==========================================================="
               echo "💡 Tip: You can run standard 'npm install' and 'pip install' here without fighting Nix!"
+              
+              # Declarative out-of-band secret configuration
+              export OPENCLAW_CONFIG_PATH="$PWD/secrets/openclaw.json5"
+              
+              if [ ! -f "$OPENCLAW_CONFIG_PATH" ]; then
+                echo "🔑 First time setup: Bootstrapping generic config into secrets/"
+                mkdir -p secrets
+                cp openclaw.example.json5 secrets/openclaw.json5
+              fi
             '';
           };
         }

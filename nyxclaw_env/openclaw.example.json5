@@ -1,0 +1,32 @@
+// NyxClaw Global Configuration Template
+// Copy this file to `secrets/openclaw.json5` and add your API keys.
+// The `secrets/` directory is automatically ignored by Git to protect your credentials.
+
+{
+  "agents": {
+    "defaults": {
+      // --------------------------------------------------------------------------
+      // NYXCLAW SANDBOX OVERRIDE:
+      // "mode: off" bypasses OpenClaw's Docker container sandbox. 
+      // Because this agent runs inside a restrictive Nix `devShell`, 
+      // Nix itself securely acts as the execution sandbox natively!
+      // --------------------------------------------------------------------------
+      "sandbox": {
+        "mode": "off"
+      }
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // PROVIDER CONFIGURATION
+  // Drop your API Keys here safely!
+  // --------------------------------------------------------------------------
+  "providers": {
+    "openai": {
+      // "apiKey": "sk-..."
+    },
+    "anthropic": {
+      // "apiKey": "sk-ant-..."
+    }
+  }
+}
