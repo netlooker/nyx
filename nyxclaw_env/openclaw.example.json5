@@ -44,9 +44,19 @@
         // baseUrl: 'http://localhost:11434/v1',
         // api: 'openai-completions',
         // apiKey: 'ollama', // Ignored by Ollama, but required by OpenAI spec
-        // models: [
-        //   { id: 'llama3', name: 'Llama 3 (Local)' }
-        // ],
+        // models: [ { id: 'llama3', name: 'Llama 3 (Ollama)' } ],
+      },
+      lmstudio: {
+        // baseUrl: 'http://127.0.0.1:1234/v1',
+        // api: 'openai-completions',
+        // apiKey: 'lm-studio',
+        // models: [ { id: 'local-model', name: 'Local Model (LM Studio)' } ],
+      },
+      llamacpp: {
+        // baseUrl: 'http://127.0.0.1:8080/v1',
+        // api: 'openai-completions',
+        // apiKey: 'llama.cpp', 
+        // models: [ { id: 'local-model', name: 'Local Model (llama.cpp)' } ],
       },
     },
   },
@@ -66,6 +76,13 @@
       // (WhatsApp relies on channels.web internally for routing via Baileys)
       // dmPolicy: 'pairing',
       // allowFrom: ['+15555550123'],
+
+      // Group configuration based on official docs
+      // groupPolicy: 'allowlist',
+      // groupAllowFrom: ['+15551234567'],
+      // groups: {
+      //   '*': { requireMention: true }, // Require mention in all permitted groups
+      // },
     },
     web: {
       // enabled: true, // Required for WhatsApp
