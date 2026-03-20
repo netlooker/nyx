@@ -21,20 +21,31 @@ Open `secrets/openclaw.json5` in your editor. This file is natively git-ignored 
 * **Add Channels**: Uncomment `channels.telegram` and add your `botToken`.
 
 ### Step 2: Bake the Container
-3. Once your configurations are perfect, bake the entire environment into a strictly isolated, production-ready Docker container! Navigate to the **root** of your repository:
+NyxClaw utilizes a "Base Layer Transparency" pattern. First, we use Nix to deterministically calculate and compile a pure Operating System and Toolchain base image containing mathematical hashes for every dependency.
+
+1. Generate the foundational pure OS base image from the root repository:
    ```bash
-   cd nyx
+   cd nyxclaw_env
+   nix build .#base-image
+   docker load -i result
+   ```
+2. Once your configurations are perfect, bake the complete agent application on top of the foundation! Navigate to the **root** of your repository:
+   ```bash
+   cd ../
    docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .
    ```
-   *Behind the scenes, the Dockerfile triggers the absolute reproducibility of a pure Nix shell to compile your agent natively without any host pollution! It also embeds an SBOM inside `/app/sbom.json`.*
+   *Behind the scenes, this standard Docker build is empowered by the mathematical guarantees of the base image. It natively inherits all locked toolchains and embeds an Application Layer SBOM inside `/app/sbom-app.json`.*
 
-4. **(Optional) Security Auditing:** You can extract the generated Software Bill of Materials (SBOM) from your baked image using a single command to feed into your vulnerability scanners (like Trivy or Grype):
+### Step 3: Security Auditing & SBOMs (Optional)
+The NyxClaw architecture natively produces dual-layered Software Bill of Materials for your security scanners (like Trivy or Grype).
+* **The OS SBOM:** The foundational OS layer generates a pure `bombon` SBOM. You can extract it directly from the base image structure.
+* **The App SBOM:** To extract the dynamic `cyclonedx-json` metadata strictly containing the Node module tree of the openclaw agent:
    ```bash
-   docker run --rm --entrypoint cat nyxclaw-agent /app/sbom.json > sbom.json
+   docker run --rm --entrypoint cat nyxclaw-agent /app/sbom-app.json > sbom-app.json
    ```
 
-### Step 3: Start the Agent
-5. Run your immutable agent container. NyxClaw uses `/data` internally to store all agent memories, SQLite databases, and downloaded files. We map this to `./nyx-data` on your host so your agent never suffers amnesia between restarts!
+### Step 4: Start the Agent
+Run your immutable agent container. NyxClaw uses `/data` internally to store all agent memories, SQLite databases, and downloaded files. We map this to `./nyx-data` on your host so your agent never suffers amnesia between restarts!
    
    **Standard Gateway (Backgrounded):**
    ```bash
