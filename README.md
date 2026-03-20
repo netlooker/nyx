@@ -24,6 +24,7 @@ Our deployment philosophy is radically simple: **Clone, Config, and Bake.**
 1. **Clone:** Fork or clone this repository to your local machine.
 2. **Config:** Add your local inference nodes (like Ollama or LLama.cpp) and messaging channels (Telegram, WhatsApp) into your heavily-ignored `secrets/openclaw.json5` configuration.
 3. **Bake:** Run the "magic" Docker build command. The container uses Nix to deterministically compile the entire openclaw agent from scratch and permanently seals your configuration inside the Docker artifact. 
+4. **Run:** Deploy the container anywhere! Map the internal `/data` volume to your host to ensure the agent's memory, downloaded files, and SQLite databases persist forever between reboots.
 
 The resulting Docker Image can be pushed to any cloud provider or orchestrator, fully equipped with native bridge networking to communicate with your APIs!
 
