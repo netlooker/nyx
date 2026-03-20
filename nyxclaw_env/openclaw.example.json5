@@ -14,6 +14,8 @@
       sandbox: {
         mode: 'off',
       },
+      // You can also assign the default model for your agent here:
+      // model: { primary: 'ollama/llama3' },
     },
   },
 
@@ -28,6 +30,45 @@
     },
     anthropic: {
       // apiKey: 'sk-ant-...',
+    },
+  },
+
+  // --------------------------------------------------------------------------
+  // LOCAL INFERENCE (Ollama, LM Studio, vLLM, etc)
+  // Maps any OpenAI-compatible completions API into your agent!
+  // --------------------------------------------------------------------------
+  models: {
+    mode: 'merge',
+    providers: {
+      ollama: {
+        // baseUrl: 'http://localhost:11434/v1',
+        // api: 'openai-completions',
+        // apiKey: 'ollama', // Ignored by Ollama, but required by OpenAI spec
+        // models: [
+        //   { id: 'llama3', name: 'Llama 3 (Local)' }
+        // ],
+      },
+    },
+  },
+
+  // --------------------------------------------------------------------------
+  // CHANNELS & INTEGRATIONS
+  // Enable WhatsApp, Telegram, Slack, integrations here natively!
+  // --------------------------------------------------------------------------
+  channels: {
+    telegram: {
+      // enabled: true,
+      // botToken: 'your-bot-token',
+      // dmPolicy: 'pairing',
+      // allowFrom: ['tg:123456789'], // Only allow these telegram IDs
+    },
+    whatsapp: {
+      // (WhatsApp relies on channels.web internally for routing via Baileys)
+      // dmPolicy: 'pairing',
+      // allowFrom: ['+15555550123'],
+    },
+    web: {
+      // enabled: true, // Required for WhatsApp
     },
   },
 }
