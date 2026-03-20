@@ -23,11 +23,11 @@ Open `secrets/openclaw.json5` in your editor. This file is natively git-ignored 
 ### Step 2: Bake the Container
 NyxClaw utilizes a "Base Layer Transparency" pattern. First, we use Nix to deterministically calculate and compile a pure Operating System and Toolchain base image containing mathematical hashes for every dependency.
 
-1. Generate the foundational pure OS base image from the root repository:
+1. Generate the foundational pure OS base image securely. To avoid Mac/Windows architecture mismatches, we run the Nix build identically inside a disposable Linux container:
    ```bash
-   cd nyxclaw_env
-   nix build .#base-image
-   docker load -i result
+   cd nyx
+   docker run --rm -v $(pwd):/app -w /app/nyxclaw_env nixos/nix:latest sh -c "mkdir -p /etc/nix && echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf && nix build .#base-image && cp -L result nyxclaw-base-image.tar.gz"
+   docker load -i nyxclaw_env/nyxclaw-base-image.tar.gz
    ```
 2. Once your configurations are perfect, bake the complete agent application on top of the foundation! Navigate to the **root** of your repository:
    ```bash
