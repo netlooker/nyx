@@ -49,20 +49,33 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
    
    **Standard Gateway (Backgrounded):**
    ```bash
-   docker run -d -v ./nyx-data:/data --name nyxclaw-bot nyxclaw-agent
+   docker run -d \
+     -v ./nyx-data:/data \
+     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     --name nyxclaw-bot \
+     nyxclaw-agent
    ```
 
    **Web UI Mode (Browser Interface):** 
    If you enabled the `gateway` block in `openclaw.json5` (setting `bind: 'lan'` and a password), map port `18789` to your host to access the Web UI:
    ```bash
-   docker run -d -v ./nyx-data:/data -p 18789:18789 --name nyxclaw-bot nyxclaw-agent
+   docker run -d \
+     -v ./nyx-data:/data \
+     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     -p 18789:18789 \
+     --name nyxclaw-bot \
+     nyxclaw-agent
    ```
    *Navigate to `http://localhost:18789` in your browser and use the password you configured to authorize!*
 
    **Interactive Terminal / TUI Mode:** 
    If you didn't configure a messenger like Telegram, you can run the agent locally via its Terminal UI:
    ```bash
-   docker run -it -v ./nyx-data:/data nyxclaw-agent bash -c "cd nyxclaw_env/openclaw && pnpm start tui"
+   docker run -it --rm \
+     -v ./nyx-data:/data \
+     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     nyxclaw-agent \
+     bash -c "cd nyxclaw_env/openclaw && pnpm start tui"
    ```
 
 If using Telegram, send a message to your bot. Check the container logs for the pairing code to securely bind your account:

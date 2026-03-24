@@ -31,3 +31,10 @@ Because we lose the pure Nix `bombon` graph generation in this imperative layer,
 1. **Total Transparency:** We achieve cryptographic awareness across both the O/S layer (via Nix declarative labels) and the App layer (via dynamic Syft scans).
 2. **Zero Maintenance Friction:** The pure C++ base layer rarely changes, meaning the Nix hashes stay perfectly intact, while the fast-moving `pnpm` ecosystem builds seamlessly via standard Docker network access.
 3. **The Best of Both Worlds:** Nix purists retain perfect, auditable control over system binaries, and developers retain the immediate workflow iteration of `docker build`.
+
+## 3. Configuration Hot-Reloading (Volume Mounts)
+While it is theoretically possible to use pure Nix to dynamically generate and symlink the `openclaw.json5` file into the container at start time (e.g., via `nix run`), we adhere to standard OCI container paradigms. 
+
+Docker relies on internal volumes for fast configuration mutation without container rebuilds. Therefore, we explicitly mount the local host configuration natively over the container's `/app/.../openclaw.json5` path using `docker run ... -v $(pwd)/.../openclaw.json5:/app/.../openclaw.json5`. 
+
+Since OpenClaw internally watches its configuration file through standard `fs.watch`, modifying your configuration on the host triggers an instantaneous gateway hot-reload inside the container without requiring **any** Nix evaluation or Docker rebuilds!
