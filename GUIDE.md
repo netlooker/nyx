@@ -51,7 +51,7 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
    ```bash
    docker run -d \
      -v ./nyx-data:/data \
-     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets \
      --name nyxclaw-bot \
      nyxclaw-agent
    ```
@@ -61,7 +61,7 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
    ```bash
    docker run -d \
      -v ./nyx-data:/data \
-     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets \
      -p 18789:18789 \
      --name nyxclaw-bot \
      nyxclaw-agent
@@ -73,7 +73,7 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
    ```bash
    docker run -it --rm \
      -v ./nyx-data:/data \
-     -v $(pwd)/nyxclaw_env/secrets/openclaw.json5:/app/nyxclaw_env/secrets/openclaw.json5 \
+     -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets \
      nyxclaw-agent \
      bash -c "cd nyxclaw_env/openclaw && pnpm start tui"
    ```
@@ -91,6 +91,21 @@ If you enabled the `telegram` channel in `openclaw.json5` with `dmPolicy: 'pairi
    docker exec nyxclaw-bot node /app/nyxclaw_env/openclaw/openclaw.mjs pairing approve telegram YOUR-PIN-HERE
    ```
 Your Telegram account is now permanently tied to the AI agent and ready for conversation!
+
+### Step 6: WhatsApp Setup & Pairing (Optional)
+If you enabled the `whatsapp` channel in `openclaw.json5`, WhatsApp uses the specialized `Baileys` client which natively demands a QR code for initial authentication.
+Because QR codes expire every 60 seconds and require proper terminal font-scaling to render correctly, you must explicitly trigger the interactive login sequence.
+
+Run this command natively on your host to generate the QR code inline:
+```bash
+docker exec -it nyxclaw-bot node /app/nyxclaw_env/openclaw/openclaw.mjs channels login --channel whatsapp
+```
+1. Wait for the colossal ASCII QR code to render in your terminal.
+2. Open WhatsApp on your mobile device.
+3. Tap **Settings > Linked Devices > Link a Device**.
+4. Scan the QR code.
+
+The terminal will report `✅ Linked after restart; web session ready.`. Your 122B parameter container agent is now autonomously serving WhatsApp replies!
 
 ---
 

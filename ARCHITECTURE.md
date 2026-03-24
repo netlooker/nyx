@@ -35,6 +35,8 @@ Because we lose the pure Nix `bombon` graph generation in this imperative layer,
 ## 3. Configuration Hot-Reloading (Volume Mounts)
 While it is theoretically possible to use pure Nix to dynamically generate and symlink the `openclaw.json5` file into the container at start time (e.g., via `nix run`), we adhere to standard OCI container paradigms. 
 
-Docker relies on internal volumes for fast configuration mutation without container rebuilds. Therefore, we explicitly mount the local host configuration natively over the container's `/app/.../openclaw.json5` path using `docker run ... -v $(pwd)/.../openclaw.json5:/app/.../openclaw.json5`. 
+Docker relies on internal volumes for fast configuration mutation without container rebuilds. Therefore, we explicitly mount the local host configuration natively over the container's directory structure using `docker run ... -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets`. 
+
+*Note: We strictly mount the directory (`secrets/`) rather than the individual file `openclaw.json5`. A single file bind mount heavily locks OS `inodes`. When the OpenClaw gateway attempts to rewrite the configuration block (e.g. during a bot onboarding flow or plugin bootstrap), it executes an atomic `rename()`. A strict file-boundary mount will mathematically deny the write lock and crash the container with an `EBUSY` runtime error. The directory mount completely solves this namespace friction.*
 
 Since OpenClaw internally watches its configuration file through standard `fs.watch`, modifying your configuration on the host triggers an instantaneous gateway hot-reload inside the container without requiring **any** Nix evaluation or Docker rebuilds!
