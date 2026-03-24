@@ -78,10 +78,19 @@ Run your immutable agent container. NyxClaw uses `/data` internally to store all
      bash -c "cd nyxclaw_env/openclaw && pnpm start tui"
    ```
 
-If using Telegram, send a message to your bot. Check the container logs for the pairing code to securely bind your account:
-```bash
-docker logs -f nyxclaw-bot
-```
+### Step 5: Telegram Setup & Pairing (Optional)
+If you enabled the `telegram` channel in `openclaw.json5` with `dmPolicy: 'pairing'`, follow these steps to securely bind your account:
+1. Open Telegram and search for your configured Bot explicitly (e.g., `@your_bot_name`).
+2. Send any message to the bot (like `/start` or `Hello`). *Since the bot is secured by the pairing policy, it will quietly ignore unauthorized messages until approved.*
+3. View the container logs on your host machine to extract your one-time **Pairing Code**:
+   ```bash
+   docker logs nyxclaw-bot 2>&1 | grep -iE "pairing|code" | tail -n 5
+   ```
+4. Copy the unique PIN from the logs and execute the approval command across the docker runtime:
+   ```bash
+   docker exec nyxclaw-bot node /app/nyxclaw_env/openclaw/openclaw.mjs pairing approve telegram YOUR-PIN-HERE
+   ```
+Your Telegram account is now permanently tied to the AI agent and ready for conversation!
 
 ---
 
