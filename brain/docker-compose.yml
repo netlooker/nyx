@@ -1,0 +1,16 @@
+services:
+  brain:
+    build:
+      context: ..
+      dockerfile: brain/Dockerfile
+    image: nyx-brain:latest
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    volumes:
+      # Config — edit on Mac, live-reloaded by openclaw (directory mount avoids EBUSY inode locks)
+      - ../secrets:/config
+      # State — all openclaw databases, agent sandboxes, sessions, downloaded files
+      # This is your backup: ~/projects/nyx/data/ on Mac
+      - ../data:/data
+    # llama.cpp lives on the local network — reachable directly by IP, no special routing needed

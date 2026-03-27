@@ -1,2 +1,23 @@
-nyx-data/
-nixos-config/secrets/authorized_keys
+# Secrets — never commit
+secrets/
+
+# Runtime workspaces (git worktrees, ephemeral per task)
+workspaces/
+
+# Nix build outputs
+result
+result-*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# direnv
+.direnv/
+
+# Runtime data (openclaw state — all gitignored)
+data/
+agents/
+sandboxes/
