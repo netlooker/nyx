@@ -6,28 +6,29 @@
 
 Wake up, netrunner. You're tired of your AI agent phoning home to corporate servers, leaking your codebase into some faceless training pipeline, going dark when the subscription lapses. You want a ghost that runs on *your* silicon, speaks through your encrypted channels, and answers only to you.
 
-This is Nyx. A self-sovereign AI cortex. Reproducible to the hash. Deployed in four moves.
+This is Nyx. A self-sovereign AI cortex. Clone it, configure it, bake it, run it. Four moves and your agent is live.
 
 ---
 
-## // PHASE 1: THE CLONE (PULL THE BLUEPRINT)
+## // PHASE 0: PRIME THE FORGE (INSTALL NIX)
 
-The entire cortex is codified. Every dependency locked to a cryptographic hash in `flake.lock`. No version drift. No supply chain surprises.
-
-**A note on Nix — it does two things here:**
-
-- **On your Mac:** `nix develop` drops you into a hardened shell with every local tool pinned (`just`, `node`, `python`, `age`). This is how you drive the project.
-- **Inside Docker:** When you run `just build`, Stage 1 of the Dockerfile spins up a `nixos/nix` container *within Docker* and runs `nix build` to compile the entire toolchain — Node.js, Python, gcc, ripgrep, the lot — cryptographically pinned. You never run this manually. Docker handles it.
-
-Two uses of Nix. One for your local environment. One baked invisibly into the container build.
-
-**[INSTALL NIX — ONE COMMAND:]**
+Before anything else, you need one tool: **Nix**. Think of it as a package manager with a superpower — it pins every dependency to a cryptographic hash so the build is identical on every machine, every time. No "works on my machine." No version drift.
 
 ```bash
 curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install
 ```
 
-Then pull the blueprint and enter the dev shell:
+That's it. Nix is now on your Mac.
+
+> **What Nix actually does in this project — the short version:**
+> 1. On your Mac: gives you the tools to drive the project (`just`, `node`, etc.)
+> 2. Inside the Docker build: compiles the entire container toolchain with every binary pinned to a hash — automatically, you never touch it
+
+---
+
+## // PHASE 1: THE CLONE (PULL THE BLUEPRINT)
+
+Pull the repo and enter the Nix dev shell. This gives you a local environment with every tool pinned — no manual installs needed:
 
 ```bash
 git clone https://github.com/netlooker/nyx.git
@@ -41,13 +42,15 @@ You'll see:
 nyx dev shell (aarch64-darwin)
 ```
 
-You're in. The shell carries `just`, `node`, `python`, `age`. From here you control the cortex.
+You're in. Your terminal now has `just` (the task runner), `node`, `python`, and `age`. Use `just` for everything from here.
+
+> **Tip:** Install [direnv](https://direnv.net/) and run `direnv allow` once — the dev shell activates automatically every time you `cd` into the project.
 
 ---
 
 ## // PHASE 2: THE CONFIG (WIRE THE NEURAL LINK)
 
-The agent is blind until you feed it credentials. The config file is gitignored by design — your keys never touch the network:
+The agent is blind until you feed it credentials. The config file is gitignored by design — your keys never leave your machine:
 
 ```bash
 cp secrets/openclaw.json5.example secrets/openclaw.json5
@@ -55,6 +58,9 @@ $EDITOR secrets/openclaw.json5
 ```
 
 **[MINIMUM CONFIG — TELEGRAM UPLINK:]**
+
+Get a bot token from [@BotFather](https://t.me/BotFather) on Telegram, then wire it in:
+
 ```json5
 channels: {
   telegram: {
@@ -65,12 +71,15 @@ channels: {
 },
 agents: {
   defaults: {
-    workspace: '/data/workspace',  // survives rebuilds — mounted from your Mac
+    workspace: '/data/workspace',  // agent files survive rebuilds
   },
 },
 ```
 
-**[OPTIONAL — WIRE IN A LOCAL INFERENCE NODE:]**
+**[OPTIONAL — LOCAL INFERENCE NODE:]**
+
+Skip the cloud. Point the agent at a local model running on your LAN via Ollama, llama.cpp, or any OpenAI-compatible endpoint:
+
 ```json5
 models: {
   mode: 'merge',
@@ -87,25 +96,22 @@ models: {
 },
 ```
 
-No cloud endpoint required. Point it at Ollama, llama.cpp, or any OpenAI-compatible socket on your LAN.
-
 ---
 
 ## // PHASE 3: THE FORGE (BAKE THE CORTEX)
 
-This is where the magic happens. One command. Two stages. Zero ambiguity.
+One command builds the entire stack:
 
 ```bash
 just build
 ```
 
-**Stage 1 — Nix Builder (automatic, inside Docker):** Docker spins up a `nixos/nix` container internally and runs `nix build`. Nix resolves the full dependency graph — Node.js, Python 3, gcc, cmake, ripgrep, bat, gh CLI, the lot — and pins every single binary to a cryptographic hash. You don't touch this. It just happens. A cryptographic SBOM ships baked into `/app/sbom-base.json` so you can prove exactly what's running inside.
+Under the hood this runs a two-stage Docker build:
 
-**Stage 2 — Cortex:** Drops the Nix store into a clean `debian:bookworm-slim`. Layers openclaw and qwen-coder on top using the pinned Node.js. Configures the entrypoint to symlink tool configs into your persistent `/data` volume before the agent boots.
+- **Stage 1 (automatic):** A `nixos/nix` container spins up *inside* Docker and compiles the full toolchain — Node.js, Python, gcc, ripgrep, gh CLI, and more — with every binary pinned to a hash. You don't touch this. Docker handles it and caches the result.
+- **Stage 2:** The compiled toolchain gets dropped into a clean, minimal Debian image. OpenClaw and qwen-coder are installed on top. The result is `nyx-cortex:latest`.
 
-Docker caches Stage 1. It only reruns when `flake.nix` or `flake.lock` change. Hot-swapping OpenClaw versions is instant — Stage 2 only.
-
-Watch for the build to complete, then you're holding a hardened image: `nyx-cortex:latest`.
+The cache is smart: Stage 1 only reruns if you change the Nix config files (`flake.nix` / `flake.lock`). Updating OpenClaw or qwen-coder only reruns Stage 2 — fast.
 
 ---
 
@@ -116,38 +122,38 @@ just up
 just logs
 ```
 
-**[EXPECTED BOOT OUTPUT:]**
+Watch the cortex come online:
+
 ```
-[*] INITIATING NYX CORTEX...
 [*] Config loaded from /config/openclaw.json5
 [*] Telegram uplink: ONLINE
 [+] Gateway listening on :18789
 [+] Agent cortex: READY
 ```
 
-Two volumes keep the agent alive across rebuilds and power cycles:
+Two volumes connect your Mac to the running container:
 
-| Host Path | Container Path | What Lives There |
+| What | On Your Mac | Inside Container |
 |---|---|---|
-| `secrets/` | `/config` | Hot-reloadable config — edit on your Mac, agent reloads live |
-| `data/` | `/data` | Agent workspace, sessions, gh auth, qwen-coder state — your backup |
+| Config | `secrets/` | `/config` |
+| All agent data | `data/` | `/data` |
 
-Edit `secrets/openclaw.json5` on your Mac and the agent picks it up instantly. No rebuild. No restart. The directory mount bypasses the EBUSY inode lock that file mounts trigger on atomic renames.
+Edit the config on your Mac — the agent picks it up live, no restart needed. All agent data (files, sessions, auth tokens) lives in `data/` on your Mac and survives container rebuilds.
 
 ---
 
 ## // PHASE 5: JACK IN (TELEGRAM PAIRING)
 
-With `dmPolicy: 'pairing'`, the agent is a ghost — invisible to everyone until *you* authorize them. First contact:
+With `dmPolicy: 'pairing'`, the agent is a ghost — it ignores everyone until *you* authorize them. First contact:
 
-1. Fire a message at your bot on Telegram — anything, `/start` works
-2. Rip the pairing PIN from the logs:
+1. Send any message to your bot on Telegram — `/start` works
+2. Grab the pairing PIN from the logs:
 
 ```bash
 docker compose -f cortex/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
 ```
 
-3. Authorize the uplink:
+3. Authorize the connection:
 
 ```bash
 docker compose -f cortex/docker-compose.yml exec cortex \
@@ -160,18 +166,33 @@ The bot responds. You're wired in. The cortex is yours.
 
 ## // PHASE 6: PERSISTENCE (YOUR DATA SURVIVES THE REBUILD)
 
-The cortex is stateless by design — you can nuke and rebuild the image at any time. Everything that matters lives in `~/projects/nyx/data/` on your Mac:
+The container is disposable. Your data is not. Everything that matters lives in `~/projects/nyx/data/` on your Mac:
 
 ```
 data/
-  workspace/     ← agent files, reports, code it wrote
-  gh/            ← GitHub CLI auth (GH_CONFIG_DIR)
-  qwen/          ← qwen-coder config (symlinked from /root/.qwen on boot)
-  sessions/      ← Telegram/WhatsApp sessions
+  workspace/     ← files the agent created, reports, code
+  gh/            ← GitHub CLI auth token
+  qwen/          ← qwen-coder config
+  sessions/      ← Telegram/WhatsApp login sessions
   agents/        ← agent sandboxes
 ```
 
-Run `just rebuild` — full no-cache bake from scratch. The agent boots, the entrypoint symlinks `/root/.qwen → /data/qwen`, and it picks up right where it left off. No re-auth. No lost state. No lost work.
+Nuke and rebuild anytime with `just rebuild`. The agent boots, reconnects to your data volume, and picks up exactly where it left off. No re-auth. No lost work.
+
+---
+
+## // USEFUL COMMANDS
+
+```bash
+just build     # bake the full image (Nix base + openclaw)
+just up        # start the cortex
+just down      # shut it down
+just logs      # tail live output
+just restart   # restart without rebuilding
+just rebuild   # full rebuild from scratch, no cache
+```
+
+Agent dashboard at `http://localhost:18789` — enable it with `gateway.bind: 'lan'` + a password in your config.
 
 ---
 
@@ -183,11 +204,10 @@ Run `just rebuild` — full no-cache bake from scratch. The agent boots, the ent
 [+] INFERENCE: LOCAL LAN NODE
 [+] STATE: PERSISTENT (/data)
 [+] TOOLCHAIN: CRYPTOGRAPHICALLY PINNED
-[+] SBOM: /app/sbom-base.json
 [+] DATA EXFIL: ZERO
 ```
 
-Your agent is sovereign, netrunner. It lives on your silicon, thinks on your hardware, and backs up to your disk. The corporate grid has no reach here.
+Your agent is sovereign, netrunner. It lives on your silicon, thinks on your hardware, backs up to your disk. The corporate grid has no reach here.
 
 ```bash
 just up
