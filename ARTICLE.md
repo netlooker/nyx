@@ -12,7 +12,22 @@ This is Nyx. A self-sovereign AI cortex. Reproducible to the hash. Deployed in f
 
 ## // PHASE 1: THE CLONE (PULL THE BLUEPRINT)
 
-The entire cortex is codified. Every dependency locked to a cryptographic hash in `flake.lock`. No version drift. No supply chain surprises. Pull the blueprint and enter the Nix dev shell — it drops you into a hardened environment with every local tool you need, pinned:
+The entire cortex is codified. Every dependency locked to a cryptographic hash in `flake.lock`. No version drift. No supply chain surprises.
+
+**A note on Nix — it does two things here:**
+
+- **On your Mac:** `nix develop` drops you into a hardened shell with every local tool pinned (`just`, `node`, `python`, `age`). This is how you drive the project.
+- **Inside Docker:** When you run `just build`, Stage 1 of the Dockerfile spins up a `nixos/nix` container *within Docker* and runs `nix build` to compile the entire toolchain — Node.js, Python, gcc, ripgrep, the lot — cryptographically pinned. You never run this manually. Docker handles it.
+
+Two uses of Nix. One for your local environment. One baked invisibly into the container build.
+
+**[INSTALL NIX — ONE COMMAND:]**
+
+```bash
+curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install
+```
+
+Then pull the blueprint and enter the dev shell:
 
 ```bash
 git clone https://github.com/netlooker/nyx.git
@@ -21,6 +36,7 @@ nix develop
 ```
 
 You'll see:
+
 ```
 nyx dev shell (aarch64-darwin)
 ```
@@ -83,7 +99,7 @@ This is where the magic happens. One command. Two stages. Zero ambiguity.
 just build
 ```
 
-**Stage 1 — Nix Builder:** Spins up `nixos/nix` inside Docker. Nix resolves the full dependency graph — Node.js, Python 3, gcc, cmake, ripgrep, bat, gh CLI, the lot — and pins every single binary to a cryptographic hash. Deterministic. Auditable. A cryptographic SBOM ships baked into `/app/sbom-base.json` so you can prove exactly what's running inside.
+**Stage 1 — Nix Builder (automatic, inside Docker):** Docker spins up a `nixos/nix` container internally and runs `nix build`. Nix resolves the full dependency graph — Node.js, Python 3, gcc, cmake, ripgrep, bat, gh CLI, the lot — and pins every single binary to a cryptographic hash. You don't touch this. It just happens. A cryptographic SBOM ships baked into `/app/sbom-base.json` so you can prove exactly what's running inside.
 
 **Stage 2 — Cortex:** Drops the Nix store into a clean `debian:bookworm-slim`. Layers openclaw and qwen-coder on top using the pinned Node.js. Configures the entrypoint to symlink tool configs into your persistent `/data` volume before the agent boots.
 
