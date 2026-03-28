@@ -3,10 +3,23 @@
 ## Prerequisites
 
 - Docker running (Apple Silicon: aarch64)
-- `just` installed (`nix develop` drops you into a shell with it)
-- `secrets/openclaw.json5` configured (see below)
+- [Nix](https://nixos.org/download/) installed — used to get `just` and for the Docker build
 
-## Step 1: Configure
+## Step 1: Enter the dev shell
+
+Clone the repo and enter the Nix dev shell. This pins all local tools (just, node, python, age) to exact versions:
+
+```bash
+git clone https://github.com/netlooker/nyx.git
+cd nyx
+nix develop
+```
+
+You'll land in a shell with `just` available. If you use [direnv](https://direnv.net/), run `direnv allow` once and it activates automatically on every `cd nyx`.
+
+> **Apple Silicon only:** The Dockerfile currently builds for `aarch64-linux`. If you're on x86_64, change `aarch64-linux` to `x86_64-linux` on line 19 of `cortex/Dockerfile`.
+
+## Step 2: Configure
 
 Edit `secrets/openclaw.json5`. This file is gitignored — your credentials stay local.
 
@@ -40,7 +53,7 @@ models: {
 },
 ```
 
-## Step 2: Build
+## Step 3: Build
 
 The Dockerfile is a multi-stage build: Stage 1 uses Nix to compile the pinned toolchain (Node.js, Python, gcc, etc.) inside a builder container; Stage 2 copies the result into a clean Debian-slim image and installs openclaw on top. Docker caches the Nix stage — it only reruns when `flake.nix` or `flake.lock` change.
 
@@ -48,7 +61,7 @@ The Dockerfile is a multi-stage build: Stage 1 uses Nix to compile the pinned to
 just build
 ```
 
-## Step 3: Start
+## Step 4: Start
 
 ```bash
 just up
