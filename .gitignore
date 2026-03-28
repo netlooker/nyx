@@ -1,6 +1,9 @@
 # Secrets — never commit
 secrets/
 
+# Claude Code local config — personal, not for sharing
+.claude/
+
 # Runtime workspaces (git worktrees, ephemeral per task)
 workspaces/
 
