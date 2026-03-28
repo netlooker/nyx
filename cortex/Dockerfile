@@ -61,4 +61,10 @@ ENV OPENCLAW_STATE_DIR=/data
 
 EXPOSE 18789
 
+# Entrypoint symlinks ephemeral tool configs into /data before openclaw starts.
+# Required for tools that hardcode $HOME with no env override (e.g. qwen-coder).
+COPY cortex/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["openclaw", "gateway", "run"]
