@@ -65,6 +65,7 @@ flake.lock             — Cryptographic lockfile — the single source of truth
 cortex/
   Dockerfile           — Multi-stage build: Nix base → Debian-slim + openclaw
   docker-compose.yml   — Volume mounts, port bindings
+  entrypoint.sh        — Symlinks tool configs into /data before openclaw starts
 secrets/               — Gitignored. Your keys live here.
 data/                  — Gitignored. Agent memory persists here.
 justfile               — Task runner: build / up / down / logs / rebuild
