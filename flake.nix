@@ -50,6 +50,8 @@
             bat
             eza
             htop
+            # GitHub CLI — agent can open issues, PRs, comment, push
+            gh
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
