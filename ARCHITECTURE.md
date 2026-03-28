@@ -20,7 +20,7 @@ This stage has zero transitive network dependencies — it's mathematically dete
 ### Layer 2: Application (Docker)
 Stage 2 starts from `debian:bookworm-slim`, copies `/nix/store` from the builder, and runs:
 ```
-npm install -g openclaw@latest
+npm install -g openclaw@latest @qwen-code/qwen-code@latest
 ```
 
 This uses the Nix-pinned Node.js (via PATH → `/nix-env/bin`), so the runtime version is still controlled by `flake.lock`. npm handles its own dependency graph — no FOD hash maintenance required.
@@ -49,5 +49,7 @@ Result: edit `secrets/openclaw.json5` on your Mac → OpenClaw hot-reloads insid
 - OpenClaw databases and session state
 - Agent sandbox directories
 - Downloaded files and memory
+- Agent workspace (`/data/workspace`) — personality, notes, memory files survive rebuilds
+- GitHub CLI auth (`/data/gh`) — `gh` token survives rebuilds
 
 The container is ephemeral. The data is not.

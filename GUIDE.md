@@ -29,11 +29,11 @@ models: {
   mode: 'merge',
   providers: {
     llamacpp: {
-      baseUrl: 'http://192.168.129.130:8008/v1',
+      baseUrl: 'http://192.168.1.x:8008/v1',  // your llama.cpp server IP
       api: 'openai-completions',
       apiKey: 'local_inference',
       models: [
-        { id: 'Qwen3.5-35B-A3B-UD-Q8_K_XL.gguf', name: 'Qwen3.5 35B (local)' },
+        { id: 'your-model.gguf', name: 'Local Model' },
       ],
     },
   },
@@ -48,7 +48,7 @@ The Dockerfile is a multi-stage build: Stage 1 uses Nix to compile the pinned to
 just build
 ```
 
-## Step 4: Start
+## Step 3: Start
 
 ```bash
 just up
@@ -96,7 +96,7 @@ The session is saved to `/data` and survives container restarts.
 just up          # start
 just down        # stop
 just logs        # tail logs
-just restart     # rebuild cortex (no Nix rebuild) + start
+just restart     # restart container without rebuilding
 just rebuild     # full rebuild from scratch + start
 ```
 
@@ -109,4 +109,4 @@ just build       # rebuilds the cortex layer with latest openclaw
 just restart
 ```
 
-The Nix base layer (`just build-base`) does not need to be rebuilt for this.
+The Nix base layer is Docker-cached and does not need to be rebuilt for this.

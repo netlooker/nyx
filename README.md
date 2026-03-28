@@ -51,7 +51,7 @@ Two volumes keep your agent alive across rebuilds:
 | Host | Container | Purpose |
 |---|---|---|
 | `secrets/` | `/config` | Hot-reloadable config — edit on your machine, agent picks it up live |
-| `data/` | `/data` | All agent memory, sandboxes, sessions — your backup lives here |
+| `data/` | `/data` | Agent memory, workspace, sessions, sandboxes, gh auth — your backup lives here |
 
 Push the image to any cloud registry. Deploy to any orchestrator. It's just a container.
 
