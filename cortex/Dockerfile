@@ -5,6 +5,7 @@
 #
 # Builds the pinned toolchain (Node.js, Python, gcc, etc.) using Nix.
 # Docker caches this layer — only rebuilds when flake.nix or flake.lock change.
+# Pinned: Node.js, Python, gcc, cmake, jq, ripgrep, bat, eza, htop, fd, zip/unzip
 ###############################################################################
 FROM nixos/nix:2.25.3 AS nix-builder
 
@@ -18,12 +19,12 @@ COPY flake.nix flake.lock ./
 RUN nix build '.#packages.aarch64-linux.base-content' --out-link /nix-content
 
 ###############################################################################
-# Stage 2: Brain
+# Stage 2: Cortex
 #
 # Minimal Debian base + Nix store from Stage 1 + openclaw on top.
 # The Nix store must stay at /nix/store — all Nix binaries use absolute paths.
 ###############################################################################
-FROM debian:bookworm-slim AS brain
+FROM debian:bookworm-slim AS cortex
 
 # Import the Nix store with all pinned packages
 COPY --from=nix-builder /nix/store /nix/store
@@ -44,7 +45,9 @@ RUN ln -sf /nix-env/bin/bash /bin/sh && \
 # Redirect npm global prefix to /usr/local so the binary lands in /usr/local/bin
 # (already on PATH). Without this, npm uses the Nix store's node prefix which has
 # a hash-based path unknown at runtime.
-RUN npm config set prefix /usr/local && npm install -g openclaw@latest
+RUN npm config set prefix /usr/local && \
+    npm install -g openclaw@latest && \
+    npm install -g @qwen-code/qwen-code@latest
 
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5
