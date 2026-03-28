@@ -43,6 +43,17 @@ Why: OpenClaw rewrites its config atomically via `rename()`. A file-level bind m
 
 Result: edit `secrets/openclaw.json5` on your Mac → OpenClaw hot-reloads inside the container via `fs.watch`. No rebuild required.
 
+## Tool Config Persistence (entrypoint.sh)
+
+Some tools hardcode `$HOME/.<toolname>` for their config with no env override. Setting an env var won't redirect them. `cortex/entrypoint.sh` solves this at runtime: it runs before openclaw starts, after the `/data` volume is mounted, and symlinks the ephemeral home path into `/data`:
+
+```sh
+mkdir -p /data/qwen
+ln -sf /data/qwen /root/.qwen
+```
+
+The tool sees `~/.qwen` as normal. The data actually lives on the persistent volume. Adding support for a new tool follows the same pattern — one `mkdir` and one `ln -sf` in `entrypoint.sh`.
+
 ## Data Persistence
 
 `data/` on Mac → `/data` in the container. Contains:
@@ -51,5 +62,6 @@ Result: edit `secrets/openclaw.json5` on your Mac → OpenClaw hot-reloads insid
 - Downloaded files and memory
 - Agent workspace (`/data/workspace`) — personality, notes, memory files survive rebuilds
 - GitHub CLI auth (`/data/gh`) — `gh` token survives rebuilds
+- Qwen-Coder config (`/data/qwen`) — `qwen` settings survive rebuilds
 
 The container is ephemeral. The data is not.
