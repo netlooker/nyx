@@ -11,7 +11,7 @@ It breaks for fast-moving npm packages like OpenClaw. Every transitive dependenc
 Rather than fighting npm with Nix purity, we split the container across two boundaries:
 
 ### Layer 1: OS Base (Pure Nix — multi-stage builder)
-`brain/Dockerfile` Stage 1 uses `nixos/nix` to build the `base-content` derivation from `flake.nix`. This produces a directory of symlinks into the Nix store containing:
+`cortex/Dockerfile` Stage 1 uses `nixos/nix` to build the `base-content` derivation from `flake.nix`. This produces a directory of symlinks into the Nix store containing:
 - Exact, pinned versions of Node.js, Python, gcc, cmake, git
 - A `bombon`-generated cryptographic SBOM of the full dependency graph
 
@@ -28,10 +28,10 @@ This uses the Nix-pinned Node.js (via PATH → `/nix-env/bin`), so the runtime v
 Everything is self-contained in a single `docker compose build`. No separate base-image build step.
 
 ### The Boundary Matters for Agent Workspaces
-OpenClaw's agent sandboxes live under `OPENCLAW_STATE_DIR` (`/data`, volume-mounted). When an agent installs packages for a coding task, it works in its own sandbox directory with its own `node_modules` and Python venvs. The brain's global `openclaw` installation is never touched.
+OpenClaw's agent sandboxes live under `OPENCLAW_STATE_DIR` (`/data`, volume-mounted). When an agent installs packages for a coding task, it works in its own sandbox directory with its own `node_modules` and Python venvs. The cortex's global `openclaw` installation is never touched.
 
 ```
-/usr/local/lib/node_modules/openclaw/  ← brain (Nix-controlled Node + npm install)
+/usr/local/lib/node_modules/openclaw/  ← cortex (Nix-controlled Node + npm install)
 /data/sandboxes/<agent>/node_modules/  ← agent workspace (isolated, disposable)
 ```
 

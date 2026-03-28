@@ -1,9 +1,9 @@
 services:
-  brain:
+  cortex:
     build:
       context: ..
-      dockerfile: brain/Dockerfile
-    image: nyx-brain:latest
+      dockerfile: cortex/Dockerfile
+    image: nyx-cortex:latest
     restart: unless-stopped
     ports:
       - "18789:18789"

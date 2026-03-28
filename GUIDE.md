@@ -65,13 +65,13 @@ With `dmPolicy: 'pairing'`, the bot ignores all messages until your Telegram acc
 2. Get the pairing PIN from logs:
 
    ```bash
-   docker compose -f brain/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
+   docker compose -f cortex/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
    ```
 
 3. Approve:
 
    ```bash
-   docker compose -f brain/docker-compose.yml exec brain \
+   docker compose -f cortex/docker-compose.yml exec cortex \
      openclaw pairing approve telegram YOUR-PIN-HERE
    ```
 
@@ -80,7 +80,7 @@ With `dmPolicy: 'pairing'`, the bot ignores all messages until your Telegram acc
 WhatsApp requires a QR code scan for initial auth (Baileys-based, expires every 60s):
 
 ```bash
-docker compose -f brain/docker-compose.yml exec -it brain \
+docker compose -f cortex/docker-compose.yml exec -it cortex \
   openclaw channels login --channel whatsapp
 ```
 
@@ -96,7 +96,7 @@ The session is saved to `/data` and survives container restarts.
 just up          # start
 just down        # stop
 just logs        # tail logs
-just restart     # rebuild brain (no Nix rebuild) + start
+just restart     # rebuild cortex (no Nix rebuild) + start
 just rebuild     # full rebuild from scratch + start
 ```
 
@@ -105,7 +105,7 @@ just rebuild     # full rebuild from scratch + start
 OpenClaw is installed via `npm install -g openclaw@latest`. To update:
 
 ```bash
-just build       # rebuilds the brain layer with latest openclaw
+just build       # rebuilds the cortex layer with latest openclaw
 just restart
 ```
 

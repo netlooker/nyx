@@ -62,7 +62,7 @@ Push the image to any cloud registry. Deploy to any orchestrator. It's just a co
 ```
 flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + generates SBOM
 flake.lock             — Cryptographic lockfile — the single source of truth for versions
-brain/
+cortex/
   Dockerfile           — Multi-stage build: Nix base → Debian-slim + openclaw
   docker-compose.yml   — Volume mounts, port bindings
 secrets/               — Gitignored. Your keys live here.

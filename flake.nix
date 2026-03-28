@@ -1,5 +1,5 @@
 {
-  description = "Nyx — reproducible brain environment for OpenClaw";
+  description = "Nyx — reproducible cortex environment for OpenClaw";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -40,6 +40,16 @@
             gnumake
             gnutar
             gzip
+            # Utilities — text processing, search, file management
+            jq
+            ripgrep
+            fd
+            unzip
+            zip
+            # Terminal quality-of-life
+            bat
+            eza
+            htop
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -65,7 +75,7 @@
           '';
 
         in {
-          # Used by the multi-stage Dockerfile (brain/Dockerfile stage 1).
+          # Used by the multi-stage Dockerfile (cortex/Dockerfile stage 1).
           # Produces a single directory with symlinks into the Nix store —
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
