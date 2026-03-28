@@ -7,6 +7,10 @@ services:
     restart: unless-stopped
     ports:
       - "18789:18789"
+    environment:
+      # GitHub token — lets the agent use `gh` to open issues, PRs, comment, etc.
+      # Set in .env file (gitignored): GITHUB_TOKEN=ghp_...
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     volumes:
       # Config — edit on Mac, live-reloaded by openclaw (directory mount avoids EBUSY inode locks)
       - ../secrets:/config
