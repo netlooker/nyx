@@ -52,6 +52,9 @@ RUN npm config set prefix /usr/local && \
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5
 
+# Persist gh CLI auth across rebuilds — token survives in the /data volume
+ENV GH_CONFIG_DIR=/data/gh
+
 # All openclaw state: databases, agent sandboxes, sessions, downloaded files.
 # Mounted as a volume so it survives container rebuilds and is backed up on Mac.
 ENV OPENCLAW_STATE_DIR=/data
