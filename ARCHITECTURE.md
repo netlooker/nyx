@@ -1,42 +1,67 @@
-# Architectural Thesis: The Pragmatic Hybrid Container
+# Architecture: Base Layer Transparency
 
-When containerizing the **NyxClaw** AI Gateway, we faced a philosophical crossroad: Should we enforce absolute Nix purity across the entire stack, or rely entirely on imperative Dockerfiles? 
+## The Problem with Pure Nix for Node Apps
 
-We chose a highly specialized **Hybrid Architecture** known as **Base Layer Transparency**. 
+Nix guarantees reproducibility through fixed-output derivations (FOD) — cryptographic hashes of every dependency's source tree. This works beautifully for stable C/Python ecosystems.
 
-## The Purity Problem: Fast-Moving Monorepos
-In a pure Nix derivation (`pkgs.dockerTools`), the build sandbox completely strips network access to guarantee strict functional determinism. To compile the expansive [OpenClaw](https://github.com/openclaw/openclaw) TypeScript framework inside this sandbox, we would be forced to use `buildNpmPackage` or `dream2nix`. 
+It breaks for fast-moving npm packages like OpenClaw. Every transitive dependency update shatters the FOD hash. Maintaining those hashes manually is operationally fatal for end users.
 
-This requires maintaining fixed-output derivation (FOD) cryptographic hashes for an absolutely massive `pnpm-workspace` block. Every single time an upstream ecosystem package updates a deep transitive dependency, the Nix build shatters until the specific tree hash is painstakingly regenerated. Expecting end-users to manage Node.js cryptographic lockfiles just to deploy an AI agent is operationally fatal.
+## The Solution: Two Explicit Layers
 
-## The Solution: Base Layer Transparency
+Rather than fighting npm with Nix purity, we split the container across two boundaries:
 
-Instead of forcing Nix to battle the chaotic NPM dependencies, we explicitly split the container architecture across two operational boundaries: **The O/S Foundation (Pure)** and **The Application Space (Impure)**.
+### Layer 1: OS Base (Pure Nix — multi-stage builder)
+`cortex/Dockerfile` Stage 1 uses `nixos/nix` to build the `base-content` derivation from `flake.nix`. This produces a directory of symlinks into the Nix store containing:
+- Exact, pinned versions of Node.js, Python, gcc, cmake, git
+- A `bombon`-generated cryptographic SBOM of the full dependency graph
 
-### 1. The Pure OS Base (`bombon` SBOM)
-We use Nix exclusively for what it is unequivocally best at: **Toolchain Reproducibility**. 
+This stage has zero transitive network dependencies — it's mathematically deterministic and Docker-cached. It only reruns when `flake.nix` or `flake.lock` change.
 
-Our `flake.nix` dynamically executes `dockerTools.buildLayeredImage` to produce a naked Docker container holding *only* the C++ compilers (required for compiling native Node modules like `sqlite3` and WebSocket bindings), the exact Node.js interpreter, Python 3 environments, and `pnpm`. 
+### Layer 2: Application (Docker)
+Stage 2 starts from `debian:bookworm-slim`, copies `/nix/store` from the builder, and runs:
+```
+npm install -g openclaw@latest @qwen-code/qwen-code@latest
+```
 
-Because this foundational layer has zero transitive network dependencies, it is mathematically pure. This allows us to inject the [`bombon`](https://github.com/nikstur/bombon) generator directly into the Flake evaluation. Nix introspectively traverses the entire C/Python base dependency graph and bakes the resulting Software Bill of Materials (SBOM) natively into the Docker OCI Metadata Labels (`Config.Labels["SBOM"]`).
+This uses the Nix-pinned Node.js (via PATH → `/nix-env/bin`), so the runtime version is still controlled by `flake.lock`. npm handles its own dependency graph — no FOD hash maintenance required.
 
-### 2. The Application Space (`syft` SBOM)
-We then utilize an imperative `Dockerfile` which natively inherits from our pure Nix image (`FROM nyxclaw-base-image`). 
+Everything is self-contained in a single `docker compose build`. No separate base-image build step.
 
-During the `docker build` phase, we execute `pnpm install` *with* network access. We bypass the brutal lockfile FOD hashing entirely, granting instantaneous and friction-free builds. 
+### The Boundary Matters for Agent Workspaces
+OpenClaw's agent sandboxes live under `OPENCLAW_STATE_DIR` (`/data`, volume-mounted). When an agent installs packages for a coding task, it works in its own sandbox directory with its own `node_modules` and Python venvs. The cortex's global `openclaw` installation is never touched.
 
-Because we lose the pure Nix `bombon` graph generation in this imperative layer, we appended `syft` to the underlying Nix environment. Immediately following compilation, the Dockerfile executes a `syft scan` natively across the active node workspace, dynamically generating a secondary CycloneDX cryptographic SBOM specifically covering the application space (`/app/sbom.json`).
+```
+/usr/local/lib/node_modules/openclaw/  ← cortex (Nix-controlled Node + npm install)
+/data/sandboxes/<agent>/node_modules/  ← agent workspace (isolated, disposable)
+```
 
-## The Result
-1. **Total Transparency:** We achieve cryptographic awareness across both the O/S layer (via Nix declarative labels) and the App layer (via dynamic Syft scans).
-2. **Zero Maintenance Friction:** The pure C++ base layer rarely changes, meaning the Nix hashes stay perfectly intact, while the fast-moving `pnpm` ecosystem builds seamlessly via standard Docker network access.
-3. **The Best of Both Worlds:** Nix purists retain perfect, auditable control over system binaries, and developers retain the immediate workflow iteration of `docker build`.
+## Configuration Hot-Reloading
 
-## 3. Configuration Hot-Reloading (Volume Mounts)
-While it is theoretically possible to use pure Nix to dynamically generate and symlink the `openclaw.json5` file into the container at start time (e.g., via `nix run`), we adhere to standard OCI container paradigms. 
+Config is mounted as a **directory** (`secrets/` → `/config`), not a single file.
 
-Docker relies on internal volumes for fast configuration mutation without container rebuilds. Therefore, we explicitly mount the local host configuration natively over the container's directory structure using `docker run ... -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets`. 
+Why: OpenClaw rewrites its config atomically via `rename()`. A file-level bind mount locks the inode — `rename()` gets `EBUSY` and crashes the container. A directory mount gives OpenClaw the namespace it needs to perform the swap cleanly.
 
-*Note: We strictly mount the directory (`secrets/`) rather than the individual file `openclaw.json5`. A single file bind mount heavily locks OS `inodes`. When the OpenClaw gateway attempts to rewrite the configuration block (e.g. during a bot onboarding flow or plugin bootstrap), it executes an atomic `rename()`. A strict file-boundary mount will mathematically deny the write lock and crash the container with an `EBUSY` runtime error. The directory mount completely solves this namespace friction.*
+Result: edit `secrets/openclaw.json5` on your Mac → OpenClaw hot-reloads inside the container via `fs.watch`. No rebuild required.
 
-Since OpenClaw internally watches its configuration file through standard `fs.watch`, modifying your configuration on the host triggers an instantaneous gateway hot-reload inside the container without requiring **any** Nix evaluation or Docker rebuilds!
+## Tool Config Persistence (entrypoint.sh)
+
+Some tools hardcode `$HOME/.<toolname>` for their config with no env override. Setting an env var won't redirect them. `cortex/entrypoint.sh` solves this at runtime: it runs before openclaw starts, after the `/data` volume is mounted, and symlinks the ephemeral home path into `/data`:
+
+```sh
+mkdir -p /data/qwen
+ln -sf /data/qwen /root/.qwen
+```
+
+The tool sees `~/.qwen` as normal. The data actually lives on the persistent volume. Adding support for a new tool follows the same pattern — one `mkdir` and one `ln -sf` in `entrypoint.sh`.
+
+## Data Persistence
+
+`data/` on Mac → `/data` in the container. Contains:
+- OpenClaw databases and session state
+- Agent sandbox directories
+- Downloaded files and memory
+- Agent workspace (`/data/workspace`) — personality, notes, memory files survive rebuilds
+- GitHub CLI auth (`/data/gh`) — `gh` token survives rebuilds
+- Qwen-Coder config (`/data/qwen`) — `qwen` settings survive rebuilds
+
+The container is ephemeral. The data is not.

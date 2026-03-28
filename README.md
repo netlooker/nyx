@@ -1,22 +1,94 @@
-# NyxClaw 🐾
+# NYX
 
-Welcome to the **NyxClaw** repository—a fully declarative, mathematically reproducible, and securely sandboxed integration of the [OpenClaw](https://github.com/openclaw/openclaw) AI agent framework.
+> *Ghost in the grid. Your AI agent, your hardware, your rules.*
 
-NyxClaw utilizes the massive power of **Nix** strictly to build the ultimate, immutable **Docker Image**. This gives you the speed and usability of standard Docker deployments, but completely eliminates traditional Docker build rot and vulnerabilities!
+Nyx is a reproducible deployment chassis for [OpenClaw](https://openclaw.ai) — an autonomous AI agent that lives on **your** infrastructure, speaks over Telegram and WhatsApp, and thinks with whatever inference engine you point it at.
 
-## The User Story (Clone & Bake)
+No cloud subscriptions. No data leaving your rack. No surprises.
 
-Our deployment philosophy is radically simple: **Clone, Config, and Bake.** 
-
-1. **Clone:** Fork or clone this repository to your local machine.
-2. **Config:** Add your local inference nodes (like Ollama or LLama.cpp) and messaging channels (Telegram, WhatsApp) into your heavily-ignored `secrets/openclaw.json5` configuration.
-3. **Bake the OS:** In the root directory, run `docker run --rm -v $(pwd):/app -w /app/nyxclaw_env nixos/nix:latest sh -c "mkdir -p /etc/nix && echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf && nix build .#base-image && cp -L result nyxclaw-base-image.tar.gz"` followed by `docker load -i nyxclaw_env/nyxclaw-base-image.tar.gz`. This generates a mathematically pristine OS base containing your compilers and a cryptographic `bombon` SBOM.
-4. **Bake the Agent:** Return to the root and run `docker build -t nyxclaw-agent -f nyxclaw_env/Dockerfile .`. This imperative build seamlessly inherits your pure OS!
-5. **Run:** Deploy the container anywhere! Map the internal `/data` volume to your host to ensure the agent's memory persists forever, and map your `secrets/` directory so you can hot-reload your runtime configuration (`openclaw.json5`) without rebuilding! (`docker run -d -v ./nyx-data:/data -v $(pwd)/nyxclaw_env/secrets:/app/nyxclaw_env/secrets nyxclaw-agent`).
-
-The resulting Docker Image can be pushed to any cloud provider or orchestrator, fully equipped with native bridge networking to communicate with your APIs!
-
-👉 **Deploy Now:** Read the [NyxClaw Deployment Manual](GUIDE.md) to instantly build your agent!
+The base OS is compiled by Nix — every binary pinned, every dependency hashed, every version locked to the nanosecond. A cryptographic SBOM ships inside the image so you can prove exactly what's running. On top of that pristine foundation, OpenClaw is layered in via Docker. One command bakes the whole stack.
 
 ---
-*Built securely for the modern AI engineering stack.*
+
+## The Philosophy: Clone → Config → Bake → Run
+
+### 1. Clone
+
+```bash
+git clone <this-repo> && cd nyx
+```
+
+### 2. Config
+
+Drop your credentials into the heavily-gitignored `secrets/openclaw.json5`:
+
+```bash
+cp secrets/openclaw.json5.example secrets/openclaw.json5
+$EDITOR secrets/openclaw.json5
+```
+
+Wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp). Full config reference in [GUIDE.md](GUIDE.md).
+
+### 3. Bake
+
+```bash
+just build
+```
+
+A single command. Stage 1 runs inside `nixos/nix` — Nix resolves the dependency graph, pins every compiler and runtime to a cryptographic hash, and hands off a mathematically deterministic toolchain. Stage 2 layers OpenClaw on top using that pinned Node.js. Docker caches Stage 1 — it only reruns when `flake.nix` or `flake.lock` change. Hot-swapping OpenClaw versions is instant.
+
+The resulting image carries a full SBOM. You can audit every binary in the base layer.
+
+### 4. Run
+
+```bash
+just up
+just logs
+```
+
+Two volumes keep your agent alive across rebuilds:
+
+| Host | Container | Purpose |
+|---|---|---|
+| `secrets/` | `/config` | Hot-reloadable config — edit on your machine, agent picks it up live |
+| `data/` | `/data` | Agent memory, workspace, sessions, sandboxes, gh auth — your backup lives here |
+
+Push the image to any cloud registry. Deploy to any orchestrator. It's just a container.
+
+---
+
+## Structure
+
+```
+flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + generates SBOM
+flake.lock             — Cryptographic lockfile — the single source of truth for versions
+cortex/
+  Dockerfile           — Multi-stage build: Nix base → Debian-slim + openclaw
+  docker-compose.yml   — Volume mounts, port bindings
+  entrypoint.sh        — Symlinks tool configs into /data before openclaw starts
+secrets/               — Gitignored. Your keys live here.
+data/                  — Gitignored. Agent memory persists here.
+justfile               — Task runner: build / up / down / logs / rebuild
+```
+
+---
+
+## Useful Commands
+
+```bash
+just build     # compile the full stack (Nix base + openclaw)
+just up        # start the agent
+just down      # stop the agent
+just logs      # tail live output
+just rebuild   # full rebuild from scratch — no cache
+just restart   # restart without rebuilding
+```
+
+Agent dashboard at `http://localhost:18789` (enable `gateway.bind: 'lan'` + password in config).
+
+---
+
+## Deep Dives
+
+- [GUIDE.md](GUIDE.md) — Telegram pairing, WhatsApp QR auth, config reference
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Why Nix + Docker, how the two-layer boundary works, hot-reload internals
