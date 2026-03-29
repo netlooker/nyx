@@ -28,6 +28,7 @@
             coreutils
             cacert
             git
+            stdenv.cc.cc.lib   # exposes libstdc++.so.6 to pip-installed binary wheels
             python3
             python3Packages.pip
             python3Packages.virtualenv
