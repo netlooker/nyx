@@ -1,5 +1,5 @@
 {
-  description = "Nyx — reproducible cortex environment for OpenClaw";
+  description = "Nyx — Nix-backed cortex environment for OpenClaw";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -8,8 +8,9 @@
 
   outputs = { self, nixpkgs, bombon }:
     let
+      lib = nixpkgs.lib;
       systems = [ "aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin" ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
+      forAllSystems = lib.genAttrs systems;
     in
     {
       # ---------------------------------------------------------------------------
@@ -43,16 +44,42 @@
             gzip
             # Utilities — text processing, search, file management
             jq
+            yq-go              # jq but for YAML/TOML — config wrangling
             ripgrep
             fd
+            gnused             # sed — stream editing
+            gawk               # awk — columnar data processing
+            diffutils          # diff, cmp — file comparison
+            findutils          # find, xargs — complements fd
+            tree               # directory visualization
+            file               # file type detection
+            less               # pager (git, man, etc. expect it)
+            which              # tool discovery
             unzip
             zip
             # Terminal quality-of-life
             bat
             eza
             htop
+            # Token optimizer — reduces LLM token consumption on shell output
+            rtk
+            # Network tools
+            curl
+            wget
+            openssh            # ssh, scp, ssh-keygen — remote access + git over SSH
+            # Database — CLI + libs for synapse vector store
+            sqlite
+            # Security & crypto
+            gnupg              # GPG — signatures, encryption
+            openssl            # TLS debugging, certs, hashing
             # GitHub CLI — agent can open issues, PRs, comment, push
             gh
+            # Static site generator — used for netlooker.github.io (chronicles)
+            hugo
+            # Ebook-to-Markdown pipeline
+            pandoc
+          ] ++ lib.optionals pkgs.stdenv.isLinux [
+            pkgs.calibre
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -83,14 +110,33 @@
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
 
+          # Optional SBOM artifact — kept out of the default Docker build path
+          # because bombon pulls a large Rust dependency graph.
+          sbom-dir = sbomDir;
+
           # Standalone Docker image tar — useful for CI or manual inspection.
           # Load with: nix build .#base-image && docker load < result
           base-image = pkgs.dockerTools.buildLayeredImage {
             name = "nyx-base-image";
             tag = "latest";
+            contents = [ baseContent fhsCompat pkgs.coreutils ];
+            config = {
+              Cmd = [ (lib.getExe pkgs.bashInteractive) ];
+              Env = [
+                "PATH=${baseContent}/bin:/bin"
+                "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+                "HOME=/root"
+              ];
+            };
+          };
+
+          # Opt-in SBOM variant for compliance-focused builds.
+          base-image-sbom = pkgs.dockerTools.buildLayeredImage {
+            name = "nyx-base-image";
+            tag = "latest-sbom";
             contents = [ baseContent sbomDir fhsCompat pkgs.coreutils ];
             config = {
-              Cmd = [ "/bin/bash" ];
+              Cmd = [ (lib.getExe pkgs.bashInteractive) ];
               Env = [
                 "PATH=${baseContent}/bin:/bin"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
@@ -121,12 +167,13 @@
               nodePackages.npm
               just
               age
+              rtk
             ] ++ sandboxTools;
 
             shellHook = ''
               echo "nyx dev shell (${system})"
               if [ ! -f "$PWD/secrets/openclaw.json5" ]; then
-                echo "warning: secrets/openclaw.json5 not found"
+                echo "warning: secrets/openclaw.json5 not found — cp cortex/openclaw.json5.example secrets/openclaw.json5"
               fi
             '';
           };

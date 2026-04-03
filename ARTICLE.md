@@ -53,7 +53,7 @@ You're in. Your terminal now has `just` (the task runner), `node`, `python`, and
 The agent is blind until you feed it credentials. The config file is gitignored by design — your keys never leave your machine:
 
 ```bash
-cp secrets/openclaw.json5.example secrets/openclaw.json5
+cp cortex/openclaw.json5.example secrets/openclaw.json5
 $EDITOR secrets/openclaw.json5
 ```
 
