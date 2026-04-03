@@ -42,7 +42,7 @@ Three principles:
 ```
 ┌──────────────┐     ┌──────────────┐     ┌─────────────────────────────┐
 │  OpenClaw    │────>│    Axon      │────>│  llama.cpp                  │
-│  (cortex)    │<────│  :8018       │<────│  192.168.129.130:8008       │
+│  (cortex)    │<────│  :8018       │<────│  192.168.1.x:8008       │
 │  :18789      │     │              │     │  Qwen3.5-35B · 262K ctx    │
 └──────────────┘     └──────────────┘     └─────────────────────────────┘
     Container           Container              Host / bare-metal
@@ -54,7 +54,7 @@ OpenClaw discovers the LLM via `secrets/openclaw.json5`:
 
 ```json5
 // Before Axon — direct to llama.cpp:
-llamacpp: { baseUrl: 'http://192.168.129.130:8008/v1' }
+llamacpp: { baseUrl: 'http://192.168.1.x:8008/v1' }
 
 // With Axon — proxy:
 llamacpp: { baseUrl: 'http://axon:8018/v1' }
@@ -180,7 +180,7 @@ Only inject if there's room. Always mark injected content clearly. This helps th
 listen = "0.0.0.0:8018"
 
 [upstream]
-url = "http://192.168.129.130:8008"
+url = "http://192.168.1.x:8008"
 tokenize_endpoint = "/tokenize"
 
 [context]
