@@ -67,7 +67,7 @@ Your `/data` volume is untouched. Sessions, workspace, gh auth — all intact.
 Check what version landed:
 
 ```bash
-docker compose -f cortex/docker-compose.yml exec cortex openclaw --version
+docker compose -f container/docker-compose.yml exec nyx openclaw --version
 ```
 
 ---
@@ -130,7 +130,10 @@ This is the critical part. No matter which upgrade path you take, everything in 
 
 ```
 data/
-  workspace/     ← agent files, reports, code — safe
+  workspace/
+    services/    ← long-running processes with UI/API — safe
+    tools/       ← CLIs and utilities — safe
+    projects/    ← git repos (synapse, etc.) — safe
   gh/            ← GitHub CLI auth token — safe
   qwen/          ← qwen-coder config — safe
   sessions/      ← Telegram/WhatsApp sessions — safe

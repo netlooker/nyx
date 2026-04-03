@@ -11,7 +11,7 @@ It breaks for fast-moving npm packages like OpenClaw. Every transitive dependenc
 Rather than fighting npm with Nix purity, we split the container across two boundaries:
 
 ### Layer 1: OS Base (Pure Nix — multi-stage builder)
-`cortex/Dockerfile` Stage 1 uses `nixos/nix` to build the `base-content` derivation from `flake.nix`. This produces a directory of symlinks into the Nix store containing:
+`container/Dockerfile` Stage 1 uses `nixos/nix` to build the `base-content` derivation from `flake.nix`. This produces a directory of symlinks into the Nix store containing:
 - Exact, pinned versions of Node.js, Python, gcc, cmake, git
 - An optional `bombon`-generated cryptographic SBOM of the full dependency graph
 
@@ -28,10 +28,10 @@ This uses the Nix-pinned Node.js (via PATH → `/nix-env/bin`), so the runtime v
 Debian is intentional here. It is the compatibility layer for the current appliance model: a simple runtime base with Nix-pinned tools and a floating npm-installed app layer. A fully Nix-native runtime image stays possible, but it becomes a cleaner trade once OpenClaw/Qwen are packaged as fixed-input derivations instead of `latest` npm installs.
 
 ### The Boundary Matters for Agent Workspaces
-OpenClaw's agent sandboxes live under `OPENCLAW_STATE_DIR` (`/data`, volume-mounted). When an agent installs packages for a coding task, it works in its own sandbox directory with its own `node_modules` and Python venvs. The cortex's global `openclaw` installation is never touched.
+OpenClaw's agent sandboxes live under `OPENCLAW_STATE_DIR` (`/data`, volume-mounted). When an agent installs packages for a coding task, it works in its own sandbox directory with its own `node_modules` and Python venvs. The container's global `openclaw` installation is never touched.
 
 ```
-/usr/local/lib/node_modules/openclaw/  ← cortex (Nix-controlled Node + npm install)
+/usr/local/lib/node_modules/openclaw/  ← container (Nix-controlled Node + npm install)
 /data/sandboxes/<agent>/node_modules/  ← agent workspace (isolated, disposable)
 ```
 
@@ -54,7 +54,11 @@ Sensitive values like `OPENCLAW_GATEWAY_PASSWORD` belong in `.env`, not in the J
 
 ## Tool Config Persistence (entrypoint.sh)
 
-Some tools hardcode `$HOME/.<toolname>` for their config with no env override. Setting an env var won't redirect them. `cortex/entrypoint.sh` solves this at runtime: it runs before openclaw starts, after the `/data` volume is mounted, and symlinks the ephemeral home path into `/data`:
+The entrypoint (`container/entrypoint.sh`) runs before openclaw starts, after the `/data` volume is mounted. It handles two things:
+
+**1. Workspace structure.** Creates `services/`, `tools/`, `projects/` under `/data/workspace` and seeds `WORKSPACE.md` on first boot (from `container/WORKSPACE.md` baked into the image at `/app/WORKSPACE.md`). The seed is a one-time copy — manual edits to the workspace copy are preserved.
+
+**2. Tool config symlinks.** Some tools hardcode `$HOME/.<toolname>` with no env override:
 
 ```sh
 mkdir -p /data/qwen
@@ -69,7 +73,7 @@ The tool sees `~/.qwen` as normal. The data actually lives on the persistent vol
 - OpenClaw databases and session state
 - Agent sandbox directories
 - Downloaded files and memory
-- Agent workspace (`/data/workspace`) — personality, notes, memory files survive rebuilds
+- Agent workspace (`/data/workspace`) — structured as `services/` (long-running UIs/APIs), `tools/` (CLIs), `projects/` (git repos)
 - GitHub CLI auth (`/data/gh`) — `gh` token survives rebuilds
 - Qwen-Coder config (`/data/qwen`) — `qwen` settings survive rebuilds
 

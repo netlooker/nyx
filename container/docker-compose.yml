@@ -1,15 +1,15 @@
 services:
-  cortex:
+  nyx:
     build:
       context: ..
-      dockerfile: cortex/Dockerfile
+      dockerfile: container/Dockerfile
       args:
         NYX_NIX_SYSTEM: ${NYX_NIX_SYSTEM:-aarch64-linux}
         OPENCLAW_VERSION: ${OPENCLAW_VERSION:-latest}
         QWEN_CODE_VERSION: ${QWEN_CODE_VERSION:-latest}
         ENABLE_SBOM: ${ENABLE_SBOM:-false}
         SBOM_PATH: ${SBOM_PATH:-}
-    image: nyx-cortex:latest
+    image: nyx:latest
     restart: unless-stopped
     ports:
       - "18789:18789"

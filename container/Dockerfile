@@ -37,12 +37,12 @@ RUN if [ "$ENABLE_SBOM" = "true" ]; then \
     fi
 
 ###############################################################################
-# Stage 2: Cortex
+# Stage 2: Container
 #
 # Minimal Debian base + Nix store from Stage 1 + openclaw on top.
 # The Nix store must stay at /nix/store — all Nix binaries use absolute paths.
 ###############################################################################
-FROM debian:bookworm-slim AS cortex
+FROM debian:bookworm-slim AS container
 ARG NYX_NIX_SYSTEM
 ARG OPENCLAW_VERSION
 ARG QWEN_CODE_VERSION
@@ -62,7 +62,7 @@ ENV SSL_CERT_FILE=/nix-env/etc/ssl/certs/ca-bundle.crt
 ENV HOME=/root
 ENV CI=true
 
-LABEL org.opencontainers.image.title="nyx-cortex" \
+LABEL org.opencontainers.image.title="nyx" \
       org.opencontainers.image.description="Hybrid Nix + Docker runtime for OpenClaw with persistent /data state." \
       org.opencontainers.image.sbom="${SBOM_PATH}" \
       io.github.netlooker.nyx.build-info="/app/build-info.json" \
@@ -97,9 +97,11 @@ ENV OPENCLAW_STATE_DIR=/data
 
 EXPOSE 18789
 
-# Entrypoint symlinks ephemeral tool configs into /data before openclaw starts.
-# Required for tools that hardcode $HOME with no env override (e.g. qwen-coder).
-COPY cortex/entrypoint.sh /entrypoint.sh
+# Workspace instructions — seeded into /data/workspace on first boot by entrypoint.sh
+COPY container/WORKSPACE.md /app/WORKSPACE.md
+
+# Entrypoint creates workspace structure, seeds docs, and symlinks tool configs.
+COPY container/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

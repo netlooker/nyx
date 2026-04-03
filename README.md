@@ -23,7 +23,7 @@ git clone <this-repo> && cd nyx
 Drop your credentials into the heavily-gitignored `secrets/openclaw.json5`:
 
 ```bash
-cp cortex/openclaw.json5.example secrets/openclaw.json5
+cp container/openclaw.json5.example secrets/openclaw.json5
 $EDITOR secrets/openclaw.json5
 ```
 
@@ -51,7 +51,7 @@ Two volumes keep your agent alive across rebuilds:
 | Host | Container | Purpose |
 |---|---|---|
 | `secrets/` | `/config` | Hot-reloadable config — edit on your machine, agent picks it up live |
-| `data/` | `/data` | Agent memory, workspace, sessions, sandboxes, gh auth — your backup lives here |
+| `data/` | `/data` | Agent state: workspace (services, tools, projects), sessions, sandboxes, gh auth |
 
 Push the image to any cloud registry. Deploy to any orchestrator. It's just a container.
 
@@ -67,15 +67,20 @@ The appliance contract is the point:
 ```
 flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + optional SBOM derivation
 flake.lock             — Cryptographic lockfile — the single source of truth for versions
-cortex/
+container/
   Dockerfile               — Multi-stage build: Nix base → Debian-slim + OpenClaw/Qwen metadata
   docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
-  entrypoint.sh            — Symlinks tool configs into /data before openclaw starts
+  entrypoint.sh            — Creates workspace structure + symlinks tool configs before openclaw starts
   openclaw.json5.example   — Template config — copy to secrets/ and fill in your values
+  WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
 secrets/               — Gitignored. Config, env vars, and credentials live here.
   openclaw.json5       — OpenClaw config (hot-reloaded)
   .env                 — Environment variables (gateway password, API keys)
-data/                  — Gitignored. Agent memory, sessions, sandboxes, and tool state persist here.
+data/                  — Gitignored. Persistent agent state.
+  workspace/
+    services/              — Long-running processes with UI/API
+    tools/                 — CLIs and utilities the agent installs
+    projects/              — Git repos the agent works on (synapse, etc.)
 justfile               — Task runner: build / build-sbom / build-base / up / down / logs / status / check
 ```
 

@@ -53,7 +53,7 @@ You're in. Your terminal now has `just` (the task runner), `node`, `python`, and
 The agent is blind until you feed it credentials. The config file is gitignored by design — your keys never leave your machine:
 
 ```bash
-cp cortex/openclaw.json5.example secrets/openclaw.json5
+cp container/openclaw.json5.example secrets/openclaw.json5
 $EDITOR secrets/openclaw.json5
 ```
 
@@ -109,7 +109,7 @@ just build
 Under the hood this runs a two-stage Docker build:
 
 - **Stage 1 (automatic):** A `nixos/nix` container spins up *inside* Docker and compiles the full toolchain — Node.js, Python, gcc, ripgrep, gh CLI, and more — with every binary pinned to a hash. You don't touch this. Docker handles it and caches the result.
-- **Stage 2:** The compiled toolchain gets dropped into a clean, minimal Debian image. OpenClaw and qwen-coder are installed on top. The result is `nyx-cortex:latest`.
+- **Stage 2:** The compiled toolchain gets dropped into a clean, minimal Debian image. OpenClaw and qwen-coder are installed on top. The result is `nyx:latest`.
 
 The cache is smart: Stage 1 only reruns if you change the Nix config files (`flake.nix` / `flake.lock`). Updating OpenClaw or qwen-coder only reruns Stage 2 — fast.
 
@@ -150,13 +150,13 @@ With `dmPolicy: 'pairing'`, the agent is a ghost — it ignores everyone until *
 2. Grab the pairing PIN from the logs:
 
 ```bash
-docker compose -f cortex/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
+docker compose -f container/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
 ```
 
 3. Authorize the connection:
 
 ```bash
-docker compose -f cortex/docker-compose.yml exec cortex \
+docker compose -f container/docker-compose.yml exec nyx \
   openclaw pairing approve telegram YOUR-PIN-HERE
 ```
 
@@ -170,7 +170,10 @@ The container is disposable. Your data is not. Everything that matters lives in 
 
 ```
 data/
-  workspace/     ← files the agent created, reports, code
+  workspace/
+    services/    ← long-running processes with UI/API
+    tools/       ← CLIs and utilities
+    projects/    ← git repos (synapse, etc.)
   gh/            ← GitHub CLI auth token
   qwen/          ← qwen-coder config
   sessions/      ← Telegram/WhatsApp login sessions

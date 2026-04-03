@@ -18,12 +18,12 @@ jobs:
       - name: Run repo checks
         run: nix develop --command just check
 
-      - name: Build cortex image
+      - name: Build container image
         run: nix develop --command just build
 
       - name: Verify image labels
         run: |
-          labels="$(docker image inspect nyx-cortex:latest --format '{{json .Config.Labels}}')"
+          labels="$(docker image inspect nyx:latest --format '{{json .Config.Labels}}')"
           echo "$labels"
           echo "$labels" | grep -q '"io.github.netlooker.nyx.build-info":"/app/build-info.json"'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.nix-system":"x86_64-linux"'
@@ -33,7 +33,7 @@ jobs:
 
       - name: Verify build metadata artifact
         run: |
-          cid="$(docker create nyx-cortex:latest)"
+          cid="$(docker create nyx:latest)"
           docker cp "$cid:/app/build-info.json" ./build-info.json
           docker cp "$cid:/app/sbom-status.json" ./sbom-status.json
           docker rm "$cid"

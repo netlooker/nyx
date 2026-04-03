@@ -42,7 +42,7 @@ Three principles:
 ```
 ┌──────────────┐     ┌──────────────┐     ┌─────────────────────────────┐
 │  OpenClaw    │────>│    Axon      │────>│  llama.cpp                  │
-│  (cortex)    │<────│  :8018       │<────│  192.168.1.x:8008       │
+│  (container) │<────│  :8018       │<────│  192.168.1.x:8008       │
 │  :18789      │     │              │     │  Qwen3.5-35B · 262K ctx    │
 └──────────────┘     └──────────────┘     └─────────────────────────────┘
     Container           Container              Host / bare-metal
@@ -215,7 +215,7 @@ enabled = false
 
 ```yaml
 services:
-  cortex:
+  nyx:
     depends_on:
       - axon
     # openclaw.json5 baseUrl → http://axon:8018/v1

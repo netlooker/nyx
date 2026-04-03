@@ -49,7 +49,7 @@ gateway: {
 Edit `secrets/openclaw.json5`:
 
 ```bash
-cp cortex/openclaw.json5.example secrets/openclaw.json5
+cp container/openclaw.json5.example secrets/openclaw.json5
 $EDITOR secrets/openclaw.json5
 ```
 
@@ -133,13 +133,13 @@ With `dmPolicy: 'pairing'`, the bot ignores all messages until your Telegram acc
 2. Get the pairing PIN from logs:
 
    ```bash
-   docker compose -f cortex/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
+   docker compose -f container/docker-compose.yml logs | grep -iE "pairing|pin|code" | tail -5
    ```
 
 3. Approve:
 
    ```bash
-   docker compose -f cortex/docker-compose.yml exec cortex \
+   docker compose -f container/docker-compose.yml exec nyx \
      openclaw pairing approve telegram YOUR-PIN-HERE
    ```
 
@@ -148,7 +148,7 @@ With `dmPolicy: 'pairing'`, the bot ignores all messages until your Telegram acc
 WhatsApp requires a QR code scan for initial auth (Baileys-based, expires every 60s):
 
 ```bash
-docker compose -f cortex/docker-compose.yml exec -it cortex \
+docker compose -f container/docker-compose.yml exec -it nyx \
   openclaw channels login --channel whatsapp
 ```
 
@@ -177,7 +177,7 @@ just status      # show channels, sessions, context window usage
 `just build` resolves the current OpenClaw and Qwen package versions before calling Docker, then passes those concrete versions into the image build. To pick up the newest release:
 
 ```bash
-just build       # rebuilds the cortex layer with latest openclaw
+just build       # rebuilds the container with latest openclaw
 just restart
 ```
 
@@ -186,7 +186,7 @@ The Nix base layer is Docker-cached and does not need to be rebuilt for this.
 To inspect the captured build metadata after a build:
 
 ```bash
-docker image inspect nyx-cortex:latest --format '{{json .Config.Labels}}'
+docker image inspect nyx:latest --format '{{json .Config.Labels}}'
 ```
 
 The default build sets SBOM metadata to disabled. If you build with `just build-sbom`, the labels will point to `/app/sbom-base.json`.

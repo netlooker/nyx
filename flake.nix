@@ -1,5 +1,5 @@
 {
-  description = "Nyx — Nix-backed cortex environment for OpenClaw";
+  description = "Nyx — Nix-backed container environment for OpenClaw";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -25,61 +25,76 @@
           # Every tool that must exist inside the container.
           # Pinned by the flake.lock — no version drift, no surprises.
           basePaths = with pkgs; [
+            # --- Core runtime ---
             bashInteractive
             coreutils
             cacert
-            git
             stdenv.cc.cc.lib   # exposes libstdc++.so.6 to pip-installed binary wheels
+
+            # --- Version control ---
+            git
+            gh                 # GitHub CLI — issues, PRs, comments, push
+
+            # --- Languages & package managers ---
             python3
             python3Packages.pip
             python3Packages.virtualenv
+            uv                 # fast Python package manager
             nodejs
             nodePackages.npm
-            # Native build tools — needed by openclaw and agent npm packages
+
+            # --- Native build tools ---
             cmake
             gcc
             pkg-config
             gnumake
+
+            # --- Archive & compression ---
             gnutar
             gzip
-            # Utilities — text processing, search, file management
-            jq
-            yq-go              # jq but for YAML/TOML — config wrangling
-            ripgrep
-            fd
-            gnused             # sed — stream editing
-            gawk               # awk — columnar data processing
-            diffutils          # diff, cmp — file comparison
-            findutils          # find, xargs — complements fd
-            tree               # directory visualization
-            file               # file type detection
-            less               # pager (git, man, etc. expect it)
-            which              # tool discovery
             unzip
             zip
-            # Terminal quality-of-life
+
+            # --- Text processing & search ---
+            jq
+            yq-go              # jq but for YAML/TOML
+            ripgrep
+            fd
+            gnused
+            gawk
+            diffutils
+
+            # --- File & system utilities ---
+            coreutils
+            findutils
+            tree
+            file
+            less
+            which
+
+            # --- Network ---
+            curl
+            wget
+            openssh            # ssh, scp, ssh-keygen
+
+            # --- Database ---
+            sqlite
+
+            # --- Security & crypto ---
+            gnupg
+            openssl
+
+            # --- Terminal quality-of-life ---
             bat
             eza
             htop
-            # Token optimizer — reduces LLM token consumption on shell output
-            rtk
-            # Network tools
-            curl
-            wget
-            openssh            # ssh, scp, ssh-keygen — remote access + git over SSH
-            # Database — CLI + libs for synapse vector store
-            sqlite
-            # Security & crypto
-            gnupg              # GPG — signatures, encryption
-            openssl            # TLS debugging, certs, hashing
-            # GitHub CLI — agent can open issues, PRs, comment, push
-            gh
-            # Static site generator — used for netlooker.github.io (chronicles)
-            hugo
-            # Ebook-to-Markdown pipeline
-            pandoc
+            rtk                # token optimizer — reduces LLM token consumption
+
+            # --- Content tools ---
+            hugo               # static site generator
+            pandoc             # document conversion
           ] ++ lib.optionals pkgs.stdenv.isLinux [
-            pkgs.calibre
+            pkgs.calibre       # ebook conversion (Linux only)
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -105,7 +120,7 @@
           '';
 
         in {
-          # Used by the multi-stage Dockerfile (cortex/Dockerfile stage 1).
+          # Used by the multi-stage Dockerfile (container/Dockerfile stage 1).
           # Produces a single directory with symlinks into the Nix store —
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
@@ -173,7 +188,7 @@
             shellHook = ''
               echo "nyx dev shell (${system})"
               if [ ! -f "$PWD/secrets/openclaw.json5" ]; then
-                echo "warning: secrets/openclaw.json5 not found — cp cortex/openclaw.json5.example secrets/openclaw.json5"
+                echo "warning: secrets/openclaw.json5 not found — cp container/openclaw.json5.example secrets/openclaw.json5"
               fi
             '';
           };
