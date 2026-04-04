@@ -67,10 +67,11 @@ The appliance contract is the point:
 ```
 flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + optional SBOM derivation
 flake.lock             — Cryptographic lockfile — the single source of truth for versions
+.agents/skills/        — Agent skills shipped with the image (github, qwen-code, synapse, workspace)
 container/
   Dockerfile               — Multi-stage build: Nix base → Debian-slim + OpenClaw/Qwen metadata
   docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
-  entrypoint.sh            — Creates workspace structure + symlinks tool configs before openclaw starts
+  entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
   openclaw.json5.example   — Template config — copy to secrets/ and fill in your values
   WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
 secrets/               — Gitignored. Config, env vars, and credentials live here.
@@ -78,6 +79,7 @@ secrets/               — Gitignored. Config, env vars, and credentials live he
   .env                 — Environment variables (gateway password, API keys)
 data/                  — Gitignored. Persistent agent state.
   workspace/
+    .agents/skills/ → /app/skills  — symlinked from image, updated on rebuild
     services/              — Long-running processes with UI/API
     tools/                 — CLIs and utilities the agent installs
     projects/              — Git repos the agent works on (synapse, etc.)

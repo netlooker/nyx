@@ -24,6 +24,14 @@ COPY flake.nix flake.lock ./
 # Build the selected Linux system's pinned base content.
 RUN nix build ".#packages.${NYX_NIX_SYSTEM}.base-content" --out-link /nix-content
 
+# Extract only the runtime closure — not the entire Nix store.
+# nix-store --query --requisites resolves the full dependency graph of
+# base-content. We hard-link matching paths into /nix-closure so Stage 2
+# copies only what's needed (~1-2 GB instead of ~6 GB).
+RUN mkdir -p /nix-closure/nix/store && \
+    nix-store --query --requisites /nix-content | \
+    xargs -I{} cp -al {} /nix-closure/nix/store/
+
 FROM nix-builder AS sbom-builder
 ARG NYX_NIX_SYSTEM
 ARG ENABLE_SBOM
@@ -49,8 +57,8 @@ ARG QWEN_CODE_VERSION
 ARG ENABLE_SBOM
 ARG SBOM_PATH
 
-# Import the Nix store with all pinned packages
-COPY --from=nix-builder /nix/store /nix/store
+# Import only the runtime closure — not the full Nix store
+COPY --from=nix-builder /nix-closure/nix/store /nix/store
 
 # The content layer: symlinks from /nix-env/bin → /nix/store/…/bin/node etc.
 COPY --from=nix-builder /nix-content /nix-env
@@ -87,6 +95,7 @@ RUN npm config set prefix /usr/local && \
 
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5
+# Qwen Code settings injected by entrypoint.sh: /config/qwen-settings.json → ~/.qwen/settings.json
 
 # Persist gh CLI auth across rebuilds — token survives in the /data volume
 ENV GH_CONFIG_DIR=/data/gh
@@ -99,6 +108,9 @@ EXPOSE 18789
 
 # Workspace instructions — seeded into /data/workspace on first boot by entrypoint.sh
 COPY container/WORKSPACE.md /app/WORKSPACE.md
+
+# Agent skills — shipped with the image, symlinked into workspace by entrypoint.sh
+COPY .agents/skills /app/skills
 
 # Entrypoint creates workspace structure, seeds docs, and symlinks tool configs.
 COPY container/entrypoint.sh /entrypoint.sh

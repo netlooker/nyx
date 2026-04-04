@@ -58,7 +58,9 @@ The entrypoint (`container/entrypoint.sh`) runs before openclaw starts, after th
 
 **1. Workspace structure.** Creates `services/`, `tools/`, `projects/` under `/data/workspace` and seeds `WORKSPACE.md` on first boot (from `container/WORKSPACE.md` baked into the image at `/app/WORKSPACE.md`). The seed is a one-time copy — manual edits to the workspace copy are preserved.
 
-**2. Tool config symlinks.** Some tools hardcode `$HOME/.<toolname>` with no env override:
+**2. Agent skills.** Skills are baked into `/app/skills` at build time (from `.agents/skills/` in the repo) and symlinked into `/data/workspace/.agents/skills`. The symlink points at the image copy, so container rebuilds deliver updated skills automatically. Skills teach the agent how to use GitHub CLI, Qwen Code, Synapse MCP tools, and navigate the workspace.
+
+**3. Tool config symlinks.** Some tools hardcode `$HOME/.<toolname>` with no env override:
 
 ```sh
 mkdir -p /data/qwen
@@ -81,6 +83,7 @@ The container is ephemeral. The data is not.
 
 That persistence contract is the product:
 - rebuild the image and the agent comes back with the same `/data`
+- rebuild the image and agent skills are updated via the `/app/skills` symlink
 - restart the container and hardcoded tool config is reattached automatically
 - edit host config under `secrets/` and OpenClaw hot-reloads it without an image rebuild
 
