@@ -6,7 +6,16 @@ Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — a
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, build tools, and utilities are pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config.
+The base toolchain is compiled by Nix — Node.js, Python, git, build tools, and utilities are pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config.
+
+### Dual-Agent Architecture
+
+Nyx ships two AI coding agents inside the same container:
+
+- **OpenClaw** — the primary agent. Handles conversations, messaging channels, tool use, and long-running tasks.
+- **Qwen Code** — a headless sub-agent. OpenClaw delegates heavy or independent tasks to Qwen via CLI (`qwen -p "task" --output-format text`). Each invocation starts fresh with no conversation history, making it ideal for code review, parallel generation, second opinions, and Synapse MCP queries.
+
+Both agents share the same local inference server (llama.cpp, Ollama, or any OpenAI-compatible endpoint). With `--parallel 2` on llama.cpp, each agent gets its own inference slot — they can work simultaneously without blocking each other.
 
 ---
 
@@ -20,14 +29,20 @@ git clone <this-repo> && cd nyx
 
 ### 2. Config
 
-Drop your credentials into the heavily-gitignored `secrets/openclaw.json5`:
+Drop your credentials into the heavily-gitignored `secrets/` directory:
 
 ```bash
 cp container/openclaw.json5.example secrets/openclaw.json5
+cp container/qwen.json5.example secrets/qwen-settings.json
 $EDITOR secrets/openclaw.json5
+$EDITOR secrets/qwen-settings.json
 ```
 
-Wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp). Full config reference in [GUIDE.md](GUIDE.md).
+`openclaw.json5` is the primary config — wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp).
+
+`qwen-settings.json` configures the Qwen Code sub-agent — point it at the same inference server and adjust temperature/max_tokens to taste. Qwen is enabled by default; remove the file to disable it.
+
+Full config reference in [GUIDE.md](GUIDE.md).
 
 ### 3. Bake
 
@@ -68,14 +83,18 @@ The appliance contract is the point:
 flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + optional SBOM derivation
 flake.lock             — Cryptographic lockfile — the single source of truth for versions
 .agents/skills/        — Agent skills shipped with the image (github, qwen-code, synapse, workspace)
+.github/workflows/
+  check.yml                — CI: validates compose config, shell syntax, flake outputs, image labels
 container/
   Dockerfile               — Multi-stage build: Nix base → Debian-slim + OpenClaw/Qwen metadata
   docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
   entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
-  openclaw.json5.example   — Template config — copy to secrets/ and fill in your values
+  openclaw.json5.example   — OpenClaw template config — copy to secrets/ and fill in your values
+  qwen.json5.example       — Qwen Code template config — copy to secrets/qwen-settings.json
   WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
 secrets/               — Gitignored. Config, env vars, and credentials live here.
   openclaw.json5       — OpenClaw config (hot-reloaded)
+  qwen-settings.json   — Qwen Code config (injected by entrypoint.sh)
   .env                 — Environment variables (gateway password, API keys)
 data/                  — Gitignored. Persistent agent state.
   workspace/
@@ -84,6 +103,7 @@ data/                  — Gitignored. Persistent agent state.
     tools/                 — CLIs and utilities the agent installs
     projects/              — Git repos the agent works on (synapse, etc.)
 justfile               — Task runner: build / build-sbom / build-base / up / down / logs / status / check
+PRD.md                 — Product requirements document
 ```
 
 ---
@@ -115,3 +135,4 @@ For SBOM lovers, `just build-sbom` turns the compliance path back on and writes 
 
 - [GUIDE.md](GUIDE.md) — Telegram pairing, WhatsApp QR auth, config reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Why Nix + Docker, how the two-layer boundary works, hot-reload internals
+- [PRD.md](PRD.md) — Product requirements and design decisions
