@@ -1,0 +1,88 @@
+// Nyx — Qwen Code configuration
+// Copy to secrets/qwen-settings.json and fill in your values.
+// IMPORTANT: Qwen Code expects strict JSON — strip these comments before use.
+// The secrets/ directory is gitignored — your credentials stay local.
+
+{
+  "general": {
+    // "vimMode": true,
+    "gitCoAuthor": true
+  },
+
+  "ui": {
+    "hideTips": true,
+    "hideBanner": true,
+    "showLineNumbers": true
+    // "theme": "Dracula"
+  },
+
+  "model": {
+    // "name": "qwen3-coder-plus",
+    // "maxSessionTurns": -1,
+    "generationConfig": {
+      // "timeout": 60000,
+      // "maxRetries": 3,
+      // "contextWindowSize": 131072,
+      "samplingParams": {
+        // "temperature": 0.6,
+        // "max_tokens": 16384
+      }
+    }
+  },
+
+  // Model providers — local llama.cpp or cloud APIs
+  "modelProviders": {
+    "openai": [
+      // Local llama.cpp inference (OpenAI-compatible endpoint)
+      // {
+      //   "id": "your-model.gguf",
+      //   "name": "Local Model",
+      //   "envKey": "LLAMACPP_API_KEY",
+      //   "baseUrl": "http://192.168.1.x:8008/v1",
+      //   "generationConfig": {
+      //     "samplingParams": { "temperature": 0.6, "max_tokens": 16384 }
+      //   }
+      // }
+    ]
+    // "anthropic": [],
+    // "gemini": []
+  },
+
+  // MCP servers — expose external tools to the agent
+  "mcpServers": {
+    // "my-server": {
+    //   "command": "/path/to/executable",
+    //   "args": ["--port", "3000"],
+    //   "env": { "CONFIG": "/path/to/config" },
+    //   "cwd": "/working/directory",
+    //   "trust": true
+    // }
+  },
+
+  "tools": {
+    // "approvalMode": "yolo",
+    "sandbox": false,
+    "useRipgrep": true
+  },
+
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": true,
+      "respectQwenIgnore": true
+    }
+  },
+
+  "security": {
+    "folderTrust": {
+      "enabled": false
+    }
+  },
+
+  "privacy": {
+    "usageStatisticsEnabled": false
+  },
+
+  "telemetry": {
+    "enabled": false
+  }
+}
