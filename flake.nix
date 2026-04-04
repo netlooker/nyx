@@ -1,5 +1,5 @@
 {
-  description = "Nyx — reproducible cortex environment for OpenClaw";
+  description = "Nyx — Nix-backed container environment for OpenClaw";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -8,8 +8,9 @@
 
   outputs = { self, nixpkgs, bombon }:
     let
+      lib = nixpkgs.lib;
       systems = [ "aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin" ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
+      forAllSystems = lib.genAttrs systems;
     in
     {
       # ---------------------------------------------------------------------------
@@ -24,34 +25,76 @@
           # Every tool that must exist inside the container.
           # Pinned by the flake.lock — no version drift, no surprises.
           basePaths = with pkgs; [
+            # --- Core runtime ---
             bashInteractive
             coreutils
             cacert
+            stdenv.cc.cc.lib   # exposes libstdc++.so.6 to pip-installed binary wheels
+
+            # --- Version control ---
             git
+            gh                 # GitHub CLI — issues, PRs, comments, push
+
+            # --- Languages & package managers ---
             python3
             python3Packages.pip
             python3Packages.virtualenv
+            uv                 # fast Python package manager
             nodejs
             nodePackages.npm
-            # Native build tools — needed by openclaw and agent npm packages
+
+            # --- Native build tools ---
             cmake
             gcc
             pkg-config
             gnumake
+
+            # --- Archive & compression ---
             gnutar
             gzip
-            # Utilities — text processing, search, file management
-            jq
-            ripgrep
-            fd
             unzip
             zip
-            # Terminal quality-of-life
+
+            # --- Text processing & search ---
+            jq
+            yq-go              # jq but for YAML/TOML
+            ripgrep
+            fd
+            gnused
+            gawk
+            diffutils
+
+            # --- File & system utilities ---
+            coreutils
+            findutils
+            tree
+            file
+            less
+            which
+
+            # --- Network ---
+            curl
+            wget
+            openssh            # ssh, scp, ssh-keygen
+
+            # --- Database ---
+            sqlite
+
+            # --- Security & crypto ---
+            gnupg
+            openssl
+
+            # --- Terminal quality-of-life ---
             bat
             eza
             htop
-            # GitHub CLI — agent can open issues, PRs, comment, push
-            gh
+            rtk                # token optimizer — reduces LLM token consumption
+
+            # --- Content tools ---
+            hugo               # static site generator
+            pandoc             # document conversion
+          ] ++ lib.optionals pkgs.stdenv.isLinux [
+            pkgs.calibre       # ebook conversion (Linux only)
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -77,19 +120,38 @@
           '';
 
         in {
-          # Used by the multi-stage Dockerfile (cortex/Dockerfile stage 1).
+          # Used by the multi-stage Dockerfile (container/Dockerfile stage 1).
           # Produces a single directory with symlinks into the Nix store —
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
+
+          # Optional SBOM artifact — kept out of the default Docker build path
+          # because bombon pulls a large Rust dependency graph.
+          sbom-dir = sbomDir;
 
           # Standalone Docker image tar — useful for CI or manual inspection.
           # Load with: nix build .#base-image && docker load < result
           base-image = pkgs.dockerTools.buildLayeredImage {
             name = "nyx-base-image";
             tag = "latest";
+            contents = [ baseContent fhsCompat pkgs.coreutils ];
+            config = {
+              Cmd = [ (lib.getExe pkgs.bashInteractive) ];
+              Env = [
+                "PATH=${baseContent}/bin:/bin"
+                "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+                "HOME=/root"
+              ];
+            };
+          };
+
+          # Opt-in SBOM variant for compliance-focused builds.
+          base-image-sbom = pkgs.dockerTools.buildLayeredImage {
+            name = "nyx-base-image";
+            tag = "latest-sbom";
             contents = [ baseContent sbomDir fhsCompat pkgs.coreutils ];
             config = {
-              Cmd = [ "/bin/bash" ];
+              Cmd = [ (lib.getExe pkgs.bashInteractive) ];
               Env = [
                 "PATH=${baseContent}/bin:/bin"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
@@ -120,12 +182,13 @@
               nodePackages.npm
               just
               age
+              rtk
             ] ++ sandboxTools;
 
             shellHook = ''
               echo "nyx dev shell (${system})"
               if [ ! -f "$PWD/secrets/openclaw.json5" ]; then
-                echo "warning: secrets/openclaw.json5 not found"
+                echo "warning: secrets/openclaw.json5 not found — cp container/openclaw.json5.example secrets/openclaw.json5"
               fi
             '';
           };

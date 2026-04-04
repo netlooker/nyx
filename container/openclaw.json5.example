@@ -1,0 +1,72 @@
+// Nyx — OpenClaw configuration
+// Copy to secrets/openclaw.json5 and fill in your values.
+// The secrets/ directory is gitignored — your credentials stay local.
+
+{
+  agents: {
+    defaults: {
+      workspace: '/data/workspace',  // persist agent memory across container rebuilds
+      sandbox: { mode: 'off' },
+      model: {
+        // primary: 'llamacpp/your-model.gguf',
+        // contextTokens: 131072,  // effective context budget (≤ model's contextWindow)
+      },
+      // Route image requests to a vision-capable model.
+      // Enable if your llama.cpp server is loaded with --mmproj (vision projector).
+      // imageModel: {
+      //   primary: 'llamacpp/your-model.gguf',
+      // },
+    },
+  },
+
+  models: {
+    mode: 'merge',
+    providers: {
+      // Local llama.cpp inference
+      llamacpp: {
+        // baseUrl: 'http://192.168.1.x:8008/v1',
+        // api: 'openai-completions',
+        // apiKey: 'local_inference',
+        // models: [
+        //   { id: 'your-model.gguf', name: 'Local Model' },
+        // ],
+      },
+      // Or use cloud providers
+      // anthropic: { apiKey: 'sk-ant-...' },
+      // openai: { apiKey: 'sk-...' },
+    },
+  },
+
+  // MCP servers — expose external tools to the agent via Model Context Protocol.
+  // Docs: https://docs.openclaw.ai/cli/mcp
+  // mcp: {
+  //   servers: {
+  //     'my-server': {
+  //       command: '/path/to/executable',
+  //       args: ['-m', 'module.name'],
+  //       env: { CONFIG: '/path/to/config' },
+  //       cwd: '/working/directory',
+  //     },
+  //   },
+  // },
+
+  gateway: {
+    // bind: 'lan',  // expose WebUI outside container — requires auth.password
+    // controlUi: { enabled: true },
+    // auth: { mode: 'password', password: 'change_me' },
+  },
+
+  channels: {
+    telegram: {
+      // enabled: true,
+      // botToken: 'get from @BotFather',
+      // dmPolicy: 'pairing',
+    },
+    whatsapp: {
+      // dmPolicy: 'pairing',
+    },
+    web: {
+      // enabled: true,  // required for WhatsApp
+    },
+  },
+}
