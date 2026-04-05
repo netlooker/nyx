@@ -1,6 +1,6 @@
 {
   lib,
-  dockerTools,
+  ec,
   bashInteractive,
   base-content,
   fhs-compat-layer,
@@ -8,7 +8,7 @@
   cacert,
   ...
 }:
-dockerTools.buildLayeredImage {
+ec.dockerTools.buildLayeredImage {
   name = "nyx-base-image";
   tag = "latest";
   contents = [

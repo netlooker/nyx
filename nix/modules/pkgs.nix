@@ -10,7 +10,13 @@
 
   systems = lib.systems.flakeExposed;
 
-  perSystem = {
-    pkgsDirectory = ../pkgs;
-  };
+  perSystem =
+    { system, ... }:
+    {
+      pkgsDirectory = ../pkgs;
+      _module.args.pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [ inputs.ec-lib.overlays.default ];
+      };
+    };
 }
