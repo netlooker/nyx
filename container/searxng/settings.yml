@@ -1,0 +1,34 @@
+# Nyx — private SearXNG sidecar configuration
+#
+# This file is tracked on purpose: phase 1 keeps SearXNG as a battle-tested
+# compose sidecar, separate from the Nyx image and separate from any future
+# Sonar runtime wiring.
+#
+# Keep this file public-safe. Do not commit private engine tokens, credentials,
+# personal endpoints, or LAN-specific hostnames here.
+
+use_default_settings:
+  engines:
+    remove:
+      - ahmia
+      - torch
+
+general:
+  instance_name: "Nyx SearXNG"
+  donation_url: false
+  contact_url: false
+  privacypolicy_url: false
+
+search:
+  # Sonar will need JSON responses later; keep HTML for manual debugging.
+  formats:
+    - html
+    - json
+
+server:
+  # Placeholder-safe value for a private internal sidecar. Replace via a
+  # non-committed override later if Sonar needs a different secret.
+  secret_key: "nyx-searxng-placeholder-change-me"
+  limiter: false
+  public_instance: false
+  image_proxy: false

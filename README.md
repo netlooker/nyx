@@ -6,7 +6,7 @@ Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — a
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config.
+The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside that image boundary for now: a private SearXNG sidecar runs in the compose stack and is intended to back future Sonar integration.
 
 ### Dual-Agent Architecture
 
@@ -73,6 +73,8 @@ Two volumes keep your agent alive across rebuilds:
 
 Push the image to any cloud registry. Deploy to any orchestrator. It's just a container.
 
+`just up` also starts a private `searxng` sidecar on the internal compose network. It is not host-exposed; future Sonar runtime integration should address it as `http://searxng:8080`.
+
 The appliance contract is the point:
 - edit `secrets/openclaw.json5` on the host and OpenClaw hot-reloads it in place
 - rebuild the image and the agent comes back with the same `/data` state
@@ -94,6 +96,7 @@ container/
   entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
   openclaw.json5.example   — OpenClaw template config — copy to secrets/ and fill in your values
   qwen.json5.example       — Qwen Code template config — copy to secrets/qwen-settings.json
+  searxng/settings.yml     — Private SearXNG sidecar defaults for future Sonar integration
   WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
 secrets/               — Gitignored. Config, env vars, and credentials live here.
   openclaw.json5       — OpenClaw config (hot-reloaded)

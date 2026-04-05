@@ -23,3 +23,18 @@ services:
     env_file:
       - ../secrets/.env
     # llama.cpp lives on the local network — reachable directly by IP, no special routing needed
+
+  # Private metasearch sidecar for future Sonar integration.
+  # Keep this on the internal compose network only: agents should reach it as
+  # http://searxng:8080, not via a host-exposed port.
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    volumes:
+      - ./searxng:/etc/searxng
+      - searxng-cache:/var/cache/searxng
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+
+volumes:
+  searxng-cache:

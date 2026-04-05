@@ -1,0 +1,5 @@
+# Nyx — SearXNG limiter configuration
+#
+# Phase 1 keeps the limiter disabled in settings.yml because this is a private
+# internal sidecar, not a public instance. The file is still present because
+# current SearXNG images look for it during startup and warn when it is absent.
