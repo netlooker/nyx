@@ -30,6 +30,7 @@ jobs:
           echo "$labels" | grep -q '"io.github.netlooker.nyx.sbom.enabled":"false"'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.openclaw.version":'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.qwen-code.version":'
+          echo "$labels" | grep -q '"io.github.netlooker.nyx.synapse.version":'
 
       - name: Verify build metadata artifact
         run: |

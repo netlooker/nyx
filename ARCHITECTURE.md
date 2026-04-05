@@ -25,6 +25,8 @@ npm install -g openclaw@<resolved-version> @qwen-code/qwen-code@<resolved-versio
 
 This uses the Nix-pinned Node.js (via PATH → `/nix-env/bin`), so the runtime version is still controlled by `flake.lock`. npm handles its own dependency graph, and `just build` resolves floating tags to concrete versions before invoking Docker so the resulting image is labeled with the actual app versions used.
 
+**Synapse** lives one layer earlier — it's a `buildPythonApplication` derivation inside `flake.nix`, pinned by `fetchFromGitHub` rev + sha256, built into the Nix store alongside git/jq/ripgrep, and included in `basePaths`. The `synapse-mcp`, `synapse-index`, and `synapse-search` binaries land on PATH via `/nix-env/bin` with zero stage-2 work. Bumping synapse is a one-shot flow: `just update-synapse` fetches the latest `main` commit, prefetches its tarball hash via `nix-prefetch-github`, and rewrites `flake.nix` in place. `just build` then reads the resolved rev via `nix eval .#synapse.src.rev` and forwards it as a metadata label (`io.github.netlooker.nyx.synapse.version`) — the value is documentation only, the actual pin lives in the flake. This placement is deliberate: synapse is a slow-moving first-party dependency that belongs in the reproducible base layer, not the thin app layer.
+
 Debian is intentional here. It is the compatibility layer for the current appliance model: a simple runtime base with Nix-pinned tools and a floating npm-installed app layer. A fully Nix-native runtime image stays possible, but it becomes a cleaner trade once OpenClaw/Qwen are packaged as fixed-input derivations instead of `latest` npm installs.
 
 ### The Boundary Matters for Agent Workspaces
@@ -56,7 +58,7 @@ Sensitive values like `OPENCLAW_GATEWAY_PASSWORD` belong in `.env`, not in the J
 
 The entrypoint (`container/entrypoint.sh`) runs before openclaw starts, after the `/data` volume is mounted. It handles two things:
 
-**1. Workspace structure.** Creates `services/`, `tools/`, `projects/` under `/data/workspace` and seeds `WORKSPACE.md` on first boot (from `container/WORKSPACE.md` baked into the image at `/app/WORKSPACE.md`). The seed is a one-time copy — manual edits to the workspace copy are preserved.
+**1. Workspace structure.** Creates `services/`, `tools/`, `projects/`, and `vault/` under `/data/workspace` and seeds `WORKSPACE.md` on first boot (from `container/WORKSPACE.md` baked into the image at `/app/WORKSPACE.md`). The seed is a one-time copy — manual edits to the workspace copy are preserved. The `vault/` directory is the default Synapse index target.
 
 **2. Agent skills.** Skills are baked into `/app/skills` at build time (from `.agents/skills/` in the repo) and symlinked into `/data/workspace/.agents/skills`. The symlink points at the image copy, so container rebuilds deliver updated skills automatically. Skills teach the agent how to use GitHub CLI, Qwen Code, Synapse MCP tools, and navigate the workspace.
 

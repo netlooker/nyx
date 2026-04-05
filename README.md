@@ -6,7 +6,7 @@ Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — a
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, build tools, and utilities are pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config.
+The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config.
 
 ### Dual-Agent Architecture
 
@@ -34,6 +34,9 @@ Drop your credentials into the heavily-gitignored `secrets/` directory:
 ```bash
 cp container/openclaw.json5.example secrets/openclaw.json5
 cp container/qwen.json5.example secrets/qwen-settings.json
+# optional — synapse ships with a working default baked into the image;
+# copy only if you want to override vault paths, embedding providers, etc.
+cp container/synapse.toml.example secrets/synapse.toml
 $EDITOR secrets/openclaw.json5
 $EDITOR secrets/qwen-settings.json
 ```

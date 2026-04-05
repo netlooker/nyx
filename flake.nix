@@ -22,6 +22,50 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
+          # Synapse — semantic retrieval / discovery engine, pinned by git rev.
+          # Bumped via `just update-synapse` which rewrites rev + hash in place.
+          # Upstream `pydantic-ai` isn't packaged in nixpkgs; we rewrite the
+          # dependency to `pydantic-ai-slim` which is what an MCP server needs.
+          # `sqlite-vec` version constraint is relaxed to match nixpkgs' pin.
+          synapse = pkgs.python3Packages.buildPythonApplication {
+            pname = "netlooker-synapse";
+            version = "0-unstable-2026-04-05";
+            pyproject = true;
+
+            src = pkgs.fetchFromGitHub {
+              owner = "netlooker";
+              repo = "synapse";
+              rev = "92fac6adc76ae0d7a614f78525c57899bc415680";
+              hash = "sha256-8N+mSdA14wJrpr0G+33tlz1pUwOmy7vRSVpy0aTEf1A=";
+            };
+
+            postPatch = ''
+              substituteInPlace "pyproject.toml" \
+                --replace-fail "pydantic-ai" "pydantic-ai-slim"
+            '';
+
+            build-system = with pkgs.python3Packages; [
+              uv-build
+              setuptools
+            ];
+
+            pythonRelaxDeps = [ "sqlite-vec" ];
+
+            # `mcp` is promoted from an optional extra to a core dependency so
+            # `synapse-mcp` works out of the box — Nyx always needs the MCP
+            # entrypoint, never the bare CLI-only build.
+            dependencies = with pkgs.python3Packages; [
+              anyio
+              mcp
+              numpy
+              ollama
+              pydantic-ai-slim
+              sqlite-vec
+            ];
+
+            pythonImportsCheck = [ "synapse" ];
+          };
+
           # Every tool that must exist inside the container.
           # Pinned by the flake.lock — no version drift, no surprises.
           basePaths = with pkgs; [
@@ -40,8 +84,7 @@
             python3Packages.pip
             python3Packages.virtualenv
             uv                 # fast Python package manager
-            nodejs
-            nodePackages.npm
+            nodejs  # bundles npm in its own bin/
 
             # --- Native build tools ---
             cmake
@@ -95,6 +138,9 @@
             pandoc             # document conversion
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             pkgs.calibre       # ebook conversion (Linux only)
+          ] ++ [
+            # --- Netlooker apps (pinned by rev+hash, bumped via just update-synapse) ---
+            synapse            # semantic retrieval engine
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -124,6 +170,10 @@
           # Produces a single directory with symlinks into the Nix store —
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
+
+          # Exposed so `just update-synapse` can nix-build it in isolation
+          # and the justfile can nix-eval its version string for the image label.
+          inherit synapse;
 
           # Optional SBOM artifact — kept out of the default Docker build path
           # because bombon pulls a large Rust dependency graph.
@@ -178,8 +228,7 @@
               git
               python3
               python3Packages.pip
-              nodejs
-              nodePackages.npm
+              nodejs  # bundles npm in its own bin/
               just
               age
               rtk
