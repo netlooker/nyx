@@ -28,7 +28,7 @@ services:
   # Keep this on the internal compose network only: agents should reach it as
   # http://searxng:8080, not via a host-exposed port.
   searxng:
-    image: docker.io/searxng/searxng:latest
+    image: docker.io/searxng/searxng@sha256:4da2820fd56920bf05303183b2f3a8c8cce18fcbcd88526cae31bc039b2d4dd1
     restart: unless-stopped
     volumes:
       - ./searxng:/etc/searxng
