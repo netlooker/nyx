@@ -21,6 +21,20 @@ if [ -f /config/qwen-settings.json ]; then
   ln -sf /config/qwen-settings.json /data/qwen/settings.json
 fi
 
+# Synapse vault — indexed by the built-in synapse-mcp server. Created on
+# first boot so synapse_index has a target even before the user adds notes.
+mkdir -p /data/workspace/vault
+
+# If the user supplied a custom synapse.toml via secrets/, point SYNAPSE_CONFIG
+# at it. Otherwise the image default at /app/synapse.toml.default (set via
+# ENV in the Dockerfile) stays in effect.
+if [ -f /config/synapse.toml ]; then
+  export SYNAPSE_CONFIG=/config/synapse.toml
+  echo "[nyx] synapse config: /config/synapse.toml (user override)"
+else
+  echo "[nyx] synapse config: ${SYNAPSE_CONFIG:-/app/synapse.toml.default} (image default)"
+fi
+
 # Ship agent skills from image into workspace.
 # Skills are baked into /app/skills at build time and symlinked into the
 # workspace's .agents/skills/ directory so agents pick them up automatically.

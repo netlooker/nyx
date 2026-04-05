@@ -7,6 +7,7 @@ services:
         NYX_NIX_SYSTEM: ${NYX_NIX_SYSTEM:-aarch64-linux}
         OPENCLAW_VERSION: ${OPENCLAW_VERSION:-latest}
         QWEN_CODE_VERSION: ${QWEN_CODE_VERSION:-latest}
+        SYNAPSE_VERSION: ${SYNAPSE_VERSION:-flake-pinned}
         ENABLE_SBOM: ${ENABLE_SBOM:-false}
         SBOM_PATH: ${SBOM_PATH:-}
     image: nyx:latest

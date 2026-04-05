@@ -3,6 +3,10 @@
 ARG NYX_NIX_SYSTEM=aarch64-linux
 ARG OPENCLAW_VERSION=latest
 ARG QWEN_CODE_VERSION=latest
+# Synapse is pinned in flake.nix by git rev + sha256; SYNAPSE_VERSION here is a
+# pure metadata value (the rev string) forwarded by `just build` for the image
+# label and build-info.json. It does not drive any install step.
+ARG SYNAPSE_VERSION=flake-pinned
 ARG ENABLE_SBOM=false
 ARG SBOM_PATH=
 
@@ -54,6 +58,7 @@ FROM debian:bookworm-slim AS container
 ARG NYX_NIX_SYSTEM
 ARG OPENCLAW_VERSION
 ARG QWEN_CODE_VERSION
+ARG SYNAPSE_VERSION
 ARG ENABLE_SBOM
 ARG SBOM_PATH
 
@@ -78,7 +83,8 @@ LABEL org.opencontainers.image.title="nyx" \
       io.github.netlooker.nyx.sbom.enabled="${ENABLE_SBOM}" \
       io.github.netlooker.nyx.sbom.path="${SBOM_PATH}" \
       io.github.netlooker.nyx.openclaw.version="${OPENCLAW_VERSION}" \
-      io.github.netlooker.nyx.qwen-code.version="${QWEN_CODE_VERSION}"
+      io.github.netlooker.nyx.qwen-code.version="${QWEN_CODE_VERSION}" \
+      io.github.netlooker.nyx.synapse.version="${SYNAPSE_VERSION}"
 
 # FHS compat: npm scripts and shebangs expect /bin/sh and /usr/bin/env
 RUN ln -sf /nix-env/bin/bash /bin/sh && \
@@ -91,7 +97,14 @@ RUN ln -sf /nix-env/bin/bash /bin/sh && \
 RUN npm config set prefix /usr/local && \
     npm install -g "openclaw@${OPENCLAW_VERSION}" && \
     npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" && \
-    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+
+# Synapse ships in the Nix base layer (see flake.nix — pinned by rev + hash).
+# The `synapse-mcp`, `synapse-index`, `synapse-search`, etc. binaries are
+# already on PATH via /nix-env/bin. We only need to provide a default config
+# so the MCP server starts without requiring the user to create one.
+COPY container/synapse.toml.example /app/synapse.toml.default
+ENV SYNAPSE_CONFIG=/app/synapse.toml.default
 
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5

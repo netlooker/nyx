@@ -18,7 +18,8 @@ build:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" ENABLE_SBOM=false SBOM_PATH="" \
+    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" ENABLE_SBOM=false SBOM_PATH="" \
       docker compose -f container/docker-compose.yml build
 
 # Build the container with the optional bombon SBOM path enabled
@@ -26,7 +27,8 @@ build-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
+    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
       docker compose -f container/docker-compose.yml build
 
 # Start the container
@@ -46,7 +48,8 @@ rebuild:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" ENABLE_SBOM=false SBOM_PATH="" \
+    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" ENABLE_SBOM=false SBOM_PATH="" \
       docker compose -f container/docker-compose.yml build --no-cache
     docker compose -f container/docker-compose.yml up -d
 
@@ -55,7 +58,8 @@ rebuild-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
+    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
       docker compose -f container/docker-compose.yml build --no-cache
     docker compose -f container/docker-compose.yml up -d
 
@@ -80,3 +84,29 @@ check:
 check-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     nix eval --raw ".#packages.$system.sbom-dir.name" >/dev/null
+
+# Bump synapse to the latest main commit and rewrite flake.nix (rev + hash + version date)
+update-synapse:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    new_rev="$(git ls-remote https://github.com/netlooker/synapse.git main | cut -f1)"
+    echo "latest main: $new_rev"
+    current_rev="$(grep -oE 'rev = "[0-9a-f]{40}"' flake.nix | head -1 | cut -d'"' -f2)"
+    if [ "$new_rev" = "$current_rev" ]; then
+      echo "already up to date ($current_rev)"
+      exit 0
+    fi
+    echo "prefetching sha256…"
+    prefetch="$(nix shell nixpkgs#nix-prefetch-github --command nix-prefetch-github netlooker synapse --rev "$new_rev")"
+    new_hash="$(printf '%s' "$prefetch" | grep -oE '"hash": "[^"]+"' | cut -d'"' -f4)"
+    old_hash="$(grep -oE 'hash = "sha256-[^"]+"' flake.nix | head -1 | cut -d'"' -f2)"
+    today="$(date +%Y-%m-%d)"
+    echo "rev:  $current_rev → $new_rev"
+    echo "hash: $old_hash → $new_hash"
+    sed -i.bak \
+      -e "s|rev = \"$current_rev\"|rev = \"$new_rev\"|" \
+      -e "s|hash = \"$old_hash\"|hash = \"$new_hash\"|" \
+      -e "s|version = \"0-unstable-[0-9-]\{10\}\"|version = \"0-unstable-$today\"|" \
+      flake.nix
+    rm -f flake.nix.bak
+    echo "flake.nix updated — run 'just build' to rebuild the image"

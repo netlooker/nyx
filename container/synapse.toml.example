@@ -1,0 +1,88 @@
+# Nyx — Synapse configuration
+# This file is baked into the image at /app/synapse.toml.default and used
+# automatically. To override, copy to secrets/synapse.toml (host) and it will
+# be bind-mounted at /config/synapse.toml — entrypoint.sh switches
+# SYNAPSE_CONFIG to the user copy when it exists.
+#
+# Synapse is installed at /opt/synapse and exposed on PATH as `synapse-mcp`.
+# Qwen Code has it wired by default via container/qwen.json5.example.
+
+[vault]
+root = "/data/workspace/vault"
+include = ["**/*.md"]
+exclude = [".obsidian/**", ".git/**", "__pycache__/**"]
+
+[database]
+path = "/data/workspace/vault/.synapse.sqlite"
+
+[vector_store]
+type = "sqlite_vec"
+
+[index]
+provider = "default"
+contextual_provider = "contextual"
+min_chunk_chars = 1200
+max_chunk_chars = 3200
+target_chunk_tokens = 480
+max_chunk_tokens = 900
+chunk_overlap_chars = 220
+chunk_strategy = "hybrid"
+
+[search]
+provider = "default"
+limit = 5
+mode = "hybrid"
+candidate_multiplier = 4
+note_weight = 0.4
+chunk_weight = 0.6
+
+[cipher]
+default_timeout_seconds = 45
+explain_timeout_seconds = 45
+chunking_timeout_seconds = 30
+stub_review_timeout_seconds = 45
+
+# Embedding providers — point base_url at your inference host.
+# Note and contextual dimensions MUST match for hybrid retrieval.
+#
+# Two ready-to-use provider families are shown below:
+#   1. Infinity (preferred for quality) — uses a dedicated contextual model
+#      via the `infinity_batch` strategy. Requires an Infinity server loaded
+#      with matching embed + context models.
+#   2. Ollama (fallback, commented out) — works with any Ollama instance that
+#      has nomic-embed-text pulled. Swap the [default]/[contextual] blocks
+#      below if you don't run Infinity.
+#
+# Replace 192.168.x.x with your LAN inference host, or use
+# host.docker.internal on Docker Desktop (Mac/Windows) to reach the host.
+
+[providers.embeddings.default]
+type = "infinity"
+model = "perplexity-ai/pplx-embed-v1-0.6b"
+base_url = "http://192.168.x.x:8081"
+dimensions = 1024
+encoding_format = "float"
+
+[providers.embeddings.contextual]
+type = "infinity"
+model = "perplexity-ai/pplx-embed-context-v1-0.6b"
+base_url = "http://192.168.x.x:8081"
+dimensions = 1024
+encoding_format = "float"
+context_strategy = "infinity_batch"
+
+# --- Ollama fallback (uncomment and delete the Infinity blocks above) ---
+# [providers.embeddings.default]
+# type = "ollama"
+# model = "nomic-embed-text:v1.5"
+# base_url = "http://host.docker.internal:11434"
+# dimensions = 768
+# encoding_format = "float"
+#
+# [providers.embeddings.contextual]
+# type = "ollama"
+# model = "nomic-embed-text:v1.5"
+# base_url = "http://host.docker.internal:11434"
+# dimensions = 768
+# encoding_format = "float"
+# context_strategy = "enriched_fallback"

@@ -48,8 +48,17 @@
     // "gemini": []
   },
 
-  // MCP servers — expose external tools to the agent
+  // MCP servers — expose external tools to the agent.
+  // `synapse` is built into the image (cloned at build time to /opt/synapse)
+  // and enabled by default. Drop it from this list to disable.
   "mcpServers": {
+    "synapse": {
+      "command": "synapse-mcp",
+      "env": {
+        "SYNAPSE_MCP_TRANSPORT": "stdio"
+      },
+      "trust": true
+    }
     // "my-server": {
     //   "command": "/path/to/executable",
     //   "args": ["--port", "3000"],

@@ -86,28 +86,37 @@ synapse_cipher_explain(doc_a="notes/topic-a.md", doc_b="notes/topic-b.md")
 
 ## Configuration
 
-Synapse config lives at `config/synapse.toml` in the synapse project. Key sections:
+Synapse is part of the Nix base layer (`flake.nix` pins it by git rev + sha256)
+and exposed on PATH as `synapse-mcp`, `synapse-index`, `synapse-search`, etc.
+Bumping to a newer commit: `just update-synapse && just build`.
 
-- `[vault]`: markdown folder root
+The active config is selected by the `SYNAPSE_CONFIG` env var:
+
+- Image default: `/app/synapse.toml.default` (shipped with the container)
+- User override: drop a `secrets/synapse.toml` on the host → bind-mounted at
+  `/config/synapse.toml` and picked up automatically by `entrypoint.sh`
+
+Key config sections:
+
+- `[vault]`: markdown folder root (defaults to `/data/workspace/vault`)
 - `[database]`: SQLite path
 - `[providers.embeddings.*]`: embedding model endpoints
 - `[cipher]`: reasoning model timeouts
 
-MCP server registration (already configured in container):
+MCP server registration (already wired in `container/qwen.json5.example`):
 ```json
 {
   "mcpServers": {
     "synapse": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/synapse", "synapse-mcp"],
-      "env": {
-        "SYNAPSE_CONFIG": "/path/to/synapse/config/synapse.toml",
-        "SYNAPSE_MCP_TRANSPORT": "stdio"
-      }
+      "command": "synapse-mcp",
+      "env": { "SYNAPSE_MCP_TRANSPORT": "stdio" },
+      "trust": true
     }
   }
 }
 ```
+`SYNAPSE_CONFIG` is inherited from the container environment, so the MCP
+entry does not need to re-specify it.
 
 ## Important constraints
 
