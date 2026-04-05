@@ -9,8 +9,8 @@
       sandbox: { mode: 'off' },
       model: {
         // primary: 'llamacpp/your-model.gguf',
-        // contextTokens: 131072,  // effective context budget (≤ model's contextWindow)
       },
+      // contextTokens: 131072,  // effective context budget (≤ model's contextWindow)
       // Route image requests to a vision-capable model.
       // Enable if your llama.cpp server is loaded with --mmproj (vision projector).
       // imageModel: {
