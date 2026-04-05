@@ -28,6 +28,11 @@ The `secrets/` directory is gitignored — all credentials stay local. Two files
 - `secrets/openclaw.json5` — OpenClaw config (hot-reloaded by the gateway)
 - `secrets/.env` — environment variables injected into the container
 
+Optional runtime overrides can also live there:
+
+- `secrets/synapse.toml` — override the baked Synapse default
+- `secrets/sonar.toml` — override the baked Sonar default
+
 ### Gateway password
 
 Create `secrets/.env` with your gateway password:

@@ -7,6 +7,10 @@ ARG QWEN_CODE_VERSION=latest
 # pure metadata value (the rev string) forwarded by `just build` for the image
 # label and build-info.json. It does not drive any install step.
 ARG SYNAPSE_VERSION=flake-pinned
+# Sonar stays in the app/runtime layer for now: install from the public repo at
+# build time, battle-test it inside Nyx, and only later decide whether it
+# belongs in flake.nix.
+ARG SONAR_REF=main
 ARG ENABLE_SBOM=false
 ARG SBOM_PATH=
 
@@ -59,6 +63,7 @@ ARG NYX_NIX_SYSTEM
 ARG OPENCLAW_VERSION
 ARG QWEN_CODE_VERSION
 ARG SYNAPSE_VERSION
+ARG SONAR_REF
 ARG ENABLE_SBOM
 ARG SBOM_PATH
 
@@ -84,7 +89,8 @@ LABEL org.opencontainers.image.title="nyx" \
       io.github.netlooker.nyx.sbom.path="${SBOM_PATH}" \
       io.github.netlooker.nyx.openclaw.version="${OPENCLAW_VERSION}" \
       io.github.netlooker.nyx.qwen-code.version="${QWEN_CODE_VERSION}" \
-      io.github.netlooker.nyx.synapse.version="${SYNAPSE_VERSION}"
+      io.github.netlooker.nyx.synapse.version="${SYNAPSE_VERSION}" \
+      io.github.netlooker.nyx.sonar.ref="${SONAR_REF}"
 
 # FHS compat: npm scripts and shebangs expect /bin/sh and /usr/bin/env
 RUN ln -sf /nix-env/bin/bash /bin/sh && \
@@ -97,7 +103,13 @@ RUN ln -sf /nix-env/bin/bash /bin/sh && \
 RUN npm config set prefix /usr/local && \
     npm install -g "openclaw@${OPENCLAW_VERSION}" && \
     npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" && \
-    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+    python -m venv /opt/sonar && \
+    /opt/sonar/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    /opt/sonar/bin/pip install --no-cache-dir "sonar[mcp] @ git+https://github.com/netlooker/sonar.git@${SONAR_REF}" && \
+    sonar_version="$("/opt/sonar/bin/python" -c "import importlib.metadata; print(importlib.metadata.version('sonar'))")" && \
+    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {requested: process.env.SONAR_REF, resolved: '${sonar_version}'}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+
+ENV PATH=/opt/sonar/bin:/nix-env/bin:/usr/local/bin:/usr/bin:/bin
 
 # Synapse ships in the Nix base layer (see flake.nix — pinned by rev + hash).
 # The `synapse-mcp`, `synapse-index`, `synapse-search`, etc. binaries are
@@ -105,6 +117,12 @@ RUN npm config set prefix /usr/local && \
 # so the MCP server starts without requiring the user to create one.
 COPY container/synapse.toml.example /app/synapse.toml.default
 ENV SYNAPSE_CONFIG=/app/synapse.toml.default
+
+# Sonar ships in the runtime/app layer for phase 2. Like Synapse, Nyx bakes a
+# safe default config into the image so `sonar-mcp` works before the user adds
+# a local override under secrets/.
+COPY container/sonar.toml.example /app/sonar.toml.default
+ENV SONAR_CONFIG=/app/sonar.toml.default
 
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5

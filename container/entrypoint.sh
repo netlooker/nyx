@@ -35,6 +35,16 @@ else
   echo "[nyx] synapse config: ${SYNAPSE_CONFIG:-/app/synapse.toml.default} (image default)"
 fi
 
+# If the user supplied a custom sonar.toml via secrets/, point SONAR_CONFIG at
+# it. Otherwise the image default at /app/sonar.toml.default (set via ENV in
+# the Dockerfile) stays in effect.
+if [ -f /config/sonar.toml ]; then
+  export SONAR_CONFIG=/config/sonar.toml
+  echo "[nyx] sonar config: /config/sonar.toml (user override)"
+else
+  echo "[nyx] sonar config: ${SONAR_CONFIG:-/app/sonar.toml.default} (image default)"
+fi
+
 # Ship agent skills from image into workspace.
 # Skills are baked into /app/skills at build time and symlinked into the
 # workspace's .agents/skills/ directory so agents pick them up automatically.

@@ -41,6 +41,16 @@
   // Docs: https://docs.openclaw.ai/cli/mcp
   // mcp: {
   //   servers: {
+  //     sonar: {
+  //       command: 'sonar-mcp',
+  //       env: {
+  //         SONAR_MCP_TRANSPORT: 'stdio',
+  //       },
+  //     },
+  //     synapse: {
+  //       command: 'synapse-mcp',
+  //       env: { SYNAPSE_MCP_TRANSPORT: 'stdio' },
+  //     },
   //     'my-server': {
   //       command: '/path/to/executable',
   //       args: ['-m', 'module.name'],

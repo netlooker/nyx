@@ -6,7 +6,7 @@ Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — a
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside that image boundary for now: a private SearXNG sidecar runs in the compose stack and is intended to back future Sonar integration.
+The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw, Qwen Code, and now Sonar are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside the Nyx image boundary itself: Sonar talks to the private SearXNG sidecar over the internal compose network.
 
 ### Dual-Agent Architecture
 
@@ -37,6 +37,9 @@ cp container/qwen.json5.example secrets/qwen-settings.json
 # optional — synapse ships with a working default baked into the image;
 # copy only if you want to override vault paths, embedding providers, etc.
 cp container/synapse.toml.example secrets/synapse.toml
+# optional — sonar ships with a working default baked into the image;
+# copy only if you want to override SearXNG auth, DB path, cache policy, etc.
+cp container/sonar.toml.example secrets/sonar.toml
 $EDITOR secrets/openclaw.json5
 $EDITOR secrets/qwen-settings.json
 ```
@@ -44,6 +47,8 @@ $EDITOR secrets/qwen-settings.json
 `openclaw.json5` is the primary config — wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp).
 
 `qwen-settings.json` configures the Qwen Code sub-agent — point it at the same inference server and adjust temperature/max_tokens to taste. Qwen is enabled by default; remove the file to disable it.
+
+`sonar.toml` is optional. The baked image default already targets the internal `http://searxng:8080` sidecar and stores its SQLite state under `/data`. Add `secrets/sonar.toml` only when you need to override those runtime defaults.
 
 Full config reference in [GUIDE.md](GUIDE.md).
 
@@ -96,11 +101,13 @@ container/
   entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
   openclaw.json5.example   — OpenClaw template config — copy to secrets/ and fill in your values
   qwen.json5.example       — Qwen Code template config — copy to secrets/qwen-settings.json
+  sonar.toml.example       — Sonar template config — copy to secrets/sonar.toml to override image defaults
   searxng/settings.yml     — Private SearXNG sidecar defaults for future Sonar integration
   WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
 secrets/               — Gitignored. Config, env vars, and credentials live here.
   openclaw.json5       — OpenClaw config (hot-reloaded)
   qwen-settings.json   — Qwen Code config (injected by entrypoint.sh)
+  sonar.toml           — Optional Sonar runtime override
   .env                 — Environment variables (gateway password, API keys)
 data/                  — Gitignored. Persistent agent state.
   workspace/
