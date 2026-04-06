@@ -76,6 +76,7 @@ check:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     docker compose -f container/docker-compose.yml config >/dev/null && \
     sh -n container/entrypoint.sh && \
+    python3 -m py_compile scripts/e2e_openclaw_sonar_synapse.py && \
     nix flake show --all-systems >/dev/null && \
     nix eval --raw ".#packages.$system.base-content.name" >/dev/null && \
     grep -q 'io.github.netlooker.nyx.build-info' container/Dockerfile
@@ -84,6 +85,18 @@ check:
 check-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     nix eval --raw ".#packages.$system.sbom-dir.name" >/dev/null
+
+# Prepare the Sonar -> Synapse OpenClaw TUI e2e run layout and prompt
+e2e-sonar-synapse-prepare:
+    python3 scripts/e2e_openclaw_sonar_synapse.py prepare
+
+# Rebuild Nyx, restart the stack, and prepare the Sonar -> Synapse e2e run
+e2e-sonar-synapse-prepare-rebuild:
+    python3 scripts/e2e_openclaw_sonar_synapse.py prepare --rebuild
+
+# Verify a completed Sonar -> Synapse e2e run
+e2e-sonar-synapse-verify TEST_ID:
+    python3 scripts/e2e_openclaw_sonar_synapse.py verify --test-id {{TEST_ID}}
 
 # Bump synapse to the latest main commit and rewrite flake.nix (rev + hash + version date)
 update-synapse:

@@ -134,6 +134,9 @@ just logs      # tail live output
 just rebuild   # full rebuild from scratch — no cache
 just restart   # restart without rebuilding
 just status    # show openclaw status (channels, sessions, context usage)
+just e2e-sonar-synapse-prepare # prepare the hybrid OpenClaw TUI -> Sonar -> Synapse e2e run
+just e2e-sonar-synapse-prepare-rebuild # rebuild Nyx and prepare the same e2e run
+just e2e-sonar-synapse-verify <test_id> # verify notes, transcript, and Synapse DB for one run
 ```
 
 Agent dashboard at `http://localhost:18789` (enable `gateway.bind: 'lan'` + password via `secrets/.env`).
@@ -148,4 +151,5 @@ For SBOM lovers, `just build-sbom` turns the compliance path back on and writes 
 
 - [GUIDE.md](GUIDE.md) — Telegram pairing, WhatsApp QR auth, config reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Why Nix + Docker, how the two-layer boundary works, hot-reload internals
+- [E2E_SONAR_SYNAPSE.md](E2E_SONAR_SYNAPSE.md) — Hybrid TUI-driven paper-ingestion e2e with transcript + DB verification
 - [PRD.md](PRD.md) — Product requirements and design decisions
