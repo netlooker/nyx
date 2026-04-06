@@ -9,6 +9,7 @@ services:
         QWEN_CODE_VERSION: ${QWEN_CODE_VERSION:-latest}
         SYNAPSE_VERSION: ${SYNAPSE_VERSION:-flake-pinned}
         SONAR_REF: ${SONAR_REF:-main}
+        SONAR_COMMIT: ${SONAR_COMMIT:-2b93d7540d4f07987f14cbd070f69554779b9dbb}
         ENABLE_SBOM: ${ENABLE_SBOM:-false}
         SBOM_PATH: ${SBOM_PATH:-}
     image: nyx:latest

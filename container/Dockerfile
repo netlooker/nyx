@@ -11,6 +11,7 @@ ARG SYNAPSE_VERSION=flake-pinned
 # build time, battle-test it inside Nyx, and only later decide whether it
 # belongs in flake.nix.
 ARG SONAR_REF=main
+ARG SONAR_COMMIT=2b93d7540d4f07987f14cbd070f69554779b9dbb
 ARG ENABLE_SBOM=false
 ARG SBOM_PATH=
 
@@ -64,6 +65,7 @@ ARG OPENCLAW_VERSION
 ARG QWEN_CODE_VERSION
 ARG SYNAPSE_VERSION
 ARG SONAR_REF
+ARG SONAR_COMMIT
 ARG ENABLE_SBOM
 ARG SBOM_PATH
 
@@ -90,7 +92,8 @@ LABEL org.opencontainers.image.title="nyx" \
       io.github.netlooker.nyx.openclaw.version="${OPENCLAW_VERSION}" \
       io.github.netlooker.nyx.qwen-code.version="${QWEN_CODE_VERSION}" \
       io.github.netlooker.nyx.synapse.version="${SYNAPSE_VERSION}" \
-      io.github.netlooker.nyx.sonar.ref="${SONAR_REF}"
+      io.github.netlooker.nyx.sonar.ref="${SONAR_REF}" \
+      io.github.netlooker.nyx.sonar.commit="${SONAR_COMMIT}"
 
 # FHS compat: npm scripts and shebangs expect /bin/sh and /usr/bin/env
 RUN ln -sf /nix-env/bin/bash /bin/sh && \
@@ -105,9 +108,9 @@ RUN npm config set prefix /usr/local && \
     npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" && \
     python -m venv /opt/sonar && \
     /opt/sonar/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    /opt/sonar/bin/pip install --no-cache-dir "sonar[mcp] @ git+https://github.com/netlooker/sonar.git@${SONAR_REF}" && \
+    /opt/sonar/bin/pip install --no-cache-dir "sonar[mcp] @ git+https://github.com/netlooker/sonar.git@${SONAR_COMMIT}" && \
     sonar_version="$("/opt/sonar/bin/python" -c "import importlib.metadata; print(importlib.metadata.version('sonar'))")" && \
-    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {requested: process.env.SONAR_REF, resolved: '${sonar_version}'}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {requestedRef: process.env.SONAR_REF, resolvedCommit: process.env.SONAR_COMMIT, resolvedVersion: '${sonar_version}'}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
 
 ENV PATH=/opt/sonar/bin:/nix-env/bin:/usr/local/bin:/usr/bin:/bin
 
