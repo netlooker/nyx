@@ -29,14 +29,14 @@
           # `sqlite-vec` version constraint is relaxed to match nixpkgs' pin.
           synapse = pkgs.python3Packages.buildPythonApplication {
             pname = "netlooker-synapse";
-            version = "0-unstable-2026-04-05";
+            version = "0-unstable-2026-04-06";
             pyproject = true;
 
             src = pkgs.fetchFromGitHub {
               owner = "netlooker";
               repo = "synapse";
-              rev = "92fac6adc76ae0d7a614f78525c57899bc415680";
-              hash = "sha256-8N+mSdA14wJrpr0G+33tlz1pUwOmy7vRSVpy0aTEf1A=";
+              rev = "a9b0423e63ac8c66e9fbb6c33cb20f2bfbd893a6";
+              hash = "sha256-CqtKC+z6U6OgopiAvlo5uBFOuVOlMic9CSBvXmx3xso=";
             };
 
             postPatch = ''
