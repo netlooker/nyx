@@ -6,6 +6,7 @@ secrets/
 
 # Runtime workspaces (git worktrees, ephemeral per task)
 workspaces/
+.tmp/
 
 # Nix build outputs
 result
