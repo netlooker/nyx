@@ -150,7 +150,10 @@ entry does not need to re-specify it.
 - For notes intended for indexing, include both metadata fields and a Markdown
   `# Title` heading so indexed `documents.title` is populated reliably
 - When building a corpus from retrieved sources, write notes from persisted
-  source artifacts rather than from memory of a prior tool result
+  Sonar artifacts such as `prepared_source_bundle.json` and `source_XX.txt`
+  rather than from memory of a prior tool result
+- Prefer Sonar `abstract` and `full_text` fields over lossy transcript snippets
+  when preparing Synapse-ready notes
 - Prefer `mode="hybrid"` unless the task clearly needs note-only or chunk-only retrieval
 - Stage work explicitly:
   1. health
@@ -186,5 +189,7 @@ RETRIEVED_AT: ...
 - For hybrid retrieval, note and contextual embedding providers must use matching dimensions
 - Content-hash based change detection — unchanged files are skipped during reindex
 - Reusing the same DB across different vault roots can leave stale documents
+- Synapse works best when upstream source bundles preserve provenance and full text;
+  if Sonar artifacts exist, prefer them over ad hoc summaries
 - `synapse_cipher_audit` is deterministic; other Cipher tools require a reasoning model
 - Discovery thresholds are corpus-dependent — tune for your vault size

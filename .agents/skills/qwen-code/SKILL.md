@@ -52,8 +52,8 @@ Always use `--output-format text` for readable results or `--output-format json`
 Good staged pattern:
 
 1. collect or confirm sources
-2. persist the source set to disk
-3. inspect the persisted artifacts
+2. inspect the auto-persisted prepared bundle
+3. inspect any per-source sidecars you need
 4. index or search
 5. synthesize the final answer
 
@@ -124,14 +124,19 @@ Use low-level Sonar tools only when needed:
 qwen -p 'use sonar_prepare_paper_set for "prompt engineering scientific papers" and return JSON only' --output-format json
 ```
 
+High-level Sonar preparation now auto-persists durable artifacts by default, so
+the usual workflow is to read the returned `bundle` object and then inspect the
+persisted `prepared_source_bundle.json` and `source_XX.txt` files before
+writing notes.
+
 ## Recommended Nyx pattern
 
 For Sonar plus Synapse tasks inside Nyx, prefer this sequence:
 
 1. Sonar high-level collection:
    `sonar_prepare_paper_set` or `sonar_collect_sources_for_topic`
-2. Persist the selected source set to disk
-3. Inspect the persisted source bundle and any per-paper extracts
+2. Inspect the returned `bundle` object
+3. Inspect the persisted `prepared_source_bundle.json` and any per-paper sidecars
 4. Write notes that include both metadata lines and a Markdown `# Title` heading
 5. Synapse workspace pass:
    `synapse_health_for_workspace`
@@ -143,7 +148,7 @@ This matches the flow that tested well in practice.
 
 Recommended persisted artifact names:
 
-- `artifacts/source_bundle.json`
+- `artifacts/prepared_source_bundle.json`
 - `artifacts/source_01.txt`, `artifacts/source_02.txt`, ...
 - `ingestion_vault/paper-01.md`, `paper-02.md`, ...
 

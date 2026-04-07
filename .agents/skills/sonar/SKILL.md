@@ -29,7 +29,8 @@ All Sonar tools are deterministic — no reasoning model involved.
 ### Preferred for weaker/local models: high-level facade first
 
 1. Start with `sonar_prepare_paper_set`, `sonar_find_papers`, or `sonar_collect_sources_for_topic`
-2. Persist the structured result to disk before summarizing or writing notes
+2. Treat the returned `bundle` object as the canonical source handoff
+3. Inspect the auto-persisted prepared bundle on disk before summarizing or writing notes
 3. Use the low-level tools only when you need tighter control over ranking, fetch, or extraction
 
 This is the default path for weaker local runtimes such as Gemma/Qwen because
@@ -37,9 +38,10 @@ it collapses the fragile `search -> fetch -> extract -> choose` loop into fewer
 transitions.
 
 For agentic corpus-building flows, treat the high-level Sonar result as source
-material, not as disposable tool output. Save the returned JSON and any per-paper
-extracts you need before writing downstream notes. Large tool payloads can be
-truncated in transcripts, while persisted artifacts remain inspectable.
+material, not as disposable tool output. High-level preparation now auto-persists
+durable artifacts by default. Large tool payloads can still be truncated in
+transcripts, so downstream note-writing should read the persisted bundle and
+sidecars rather than rely on transcript retention.
 
 ### Strong-model or manual workflow: search → fetch → extract
 
@@ -103,8 +105,19 @@ sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpu
 ### Persist the prepared source set before note writing
 ```
 bundle = sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
-# Save the structured bundle to artifacts/source_bundle.json before summarizing it
+# Inspect bundle and the persisted artifacts before summarizing them
 ```
+
+### Canonical persisted artifacts
+```
+prepared_source_bundle.json
+source_01.txt
+source_02.txt
+...
+```
+
+High-level preparation now writes `prepared_source_bundle.json` plus optional
+`source_XX.txt` sidecars by default.
 
 ### Search for a topic
 ```
@@ -176,16 +189,34 @@ entry does not need to re-specify it.
 - Prefer the high-level paper/source tools for Qwen, Gemma, and other weaker
   local runtimes
 - Avoid asking a weak model to orchestrate many Sonar steps in one prompt
-- Persist Sonar outputs to disk before compressing them into notes or summaries
-- Prefer durable artifacts such as `artifacts/source_bundle.json` and per-source
-  text files over relying on long tool results in the transcript
+- Prefer the returned `bundle` object over compatibility `sources` fields when both exist
+- High-level preparation already persists durable artifacts by default; inspect
+  those files before compressing results into notes or summaries
+- Prefer `prepared_source_bundle.json` and per-source `source_XX.txt` sidecars
+  over relying on long tool results in the transcript
 - If you need multi-step evidence gathering, stage it:
   1. search or prepare
-  2. persist the result set
-  3. inspect the persisted artifacts
+  2. inspect the persisted bundle
+  3. inspect the per-source sidecars
   4. only then fetch/extract more
 - Prefer one high-value Sonar call over long search/fetch/extract loops
 - Return or request structured JSON whenever possible
+
+## Prepared bundle semantics
+
+The high-level facade now separates:
+
+- `summary`: compact high-level description
+- `abstract`: abstract-level paper description when available
+- `full_text`: extracted full source text
+
+It also records provenance fields such as stable `source_id`, retrieval
+timestamps, extraction method/status, cache flags, and search lineage. Use those
+fields when writing notes or auditing a run.
+
+Direct-document candidates such as PDFs are now part of the normal high-level
+preparation flow when the format is supported. Do not assume PDF-first academic
+sources will be skipped.
 
 ## Important constraints
 
