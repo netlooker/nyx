@@ -5,6 +5,10 @@
 # projects (git repos the agent works on).
 mkdir -p /data/workspace/services /data/workspace/tools /data/workspace/projects
 
+# Make the runtime command surface explicit for shells, maintenance commands,
+# and child processes that do not preserve the Dockerfile PATH verbatim.
+export PATH=/opt/sonar/bin:/nix-env/bin:/usr/local/bin:/usr/bin:/bin
+
 # Seed workspace instructions on first boot (won't overwrite edits)
 [ ! -f /data/workspace/WORKSPACE.md ] && cp /app/WORKSPACE.md /data/workspace/WORKSPACE.md
 

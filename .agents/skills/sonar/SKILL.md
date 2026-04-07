@@ -99,8 +99,10 @@ sonar_fetch(url="https://docs.python.org/3/library/asyncio.html")
 
 ## Configuration
 
-Sonar is installed in the runtime/app layer (`/opt/sonar/bin`) and exposed on PATH
-as `sonar-mcp`, `sonar-api`, and `sonar-smoke`.
+Sonar is installed in the runtime/app layer under `/opt/sonar/bin`
+(`/opt/sonar/bin/sonar-mcp`, `/opt/sonar/bin/sonar-api`,
+`/opt/sonar/bin/sonar-smoke`). Those binaries are also exported on PATH, but
+Nyx prefers absolute paths in config.
 
 The active config is selected by the `SONAR_CONFIG` env var:
 
@@ -123,7 +125,7 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 {
   "mcpServers": {
     "sonar": {
-      "command": "sonar-mcp",
+      "command": "/opt/sonar/bin/sonar-mcp",
       "env": { "SONAR_MCP_TRANSPORT": "stdio" },
       "trust": true
     }

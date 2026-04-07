@@ -55,14 +55,14 @@
   // Drop either entry from this list to disable it.
   "mcpServers": {
     "synapse": {
-      "command": "synapse-mcp",
+      "command": "/nix-env/bin/synapse-mcp",
       "env": {
         "SYNAPSE_MCP_TRANSPORT": "stdio"
       },
       "trust": true
     },
     "sonar": {
-      "command": "sonar-mcp",
+      "command": "/opt/sonar/bin/sonar-mcp",
       "env": {
         "SONAR_MCP_TRANSPORT": "stdio"
       },

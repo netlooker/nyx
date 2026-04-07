@@ -4,8 +4,9 @@
 # be bind-mounted at /config/sonar.toml — entrypoint.sh switches SONAR_CONFIG
 # to the user copy when it exists.
 #
-# Sonar is installed into the Nyx runtime layer and exposed on PATH as
-# `sonar-mcp`, `sonar-api`, and `sonar-smoke`.
+# Sonar is installed into the Nyx runtime layer under /opt/sonar/bin (for
+# example /opt/sonar/bin/sonar-mcp). Those binaries are also exported on PATH,
+# but Nyx prefers the absolute /opt/sonar/bin path in MCP config.
 # The default Nyx wiring keeps Sonar MCP-first and points it at the internal
 # SearXNG sidecar service.
 

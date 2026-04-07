@@ -42,13 +42,13 @@
   // mcp: {
   //   servers: {
   //     sonar: {
-  //       command: 'sonar-mcp',
+  //       command: '/opt/sonar/bin/sonar-mcp',
   //       env: {
   //         SONAR_MCP_TRANSPORT: 'stdio',
   //       },
   //     },
   //     synapse: {
-  //       command: 'synapse-mcp',
+  //       command: '/nix-env/bin/synapse-mcp',
   //       env: { SYNAPSE_MCP_TRANSPORT: 'stdio' },
   //     },
   //     'my-server': {

@@ -87,7 +87,9 @@ synapse_cipher_explain(doc_a="notes/topic-a.md", doc_b="notes/topic-b.md")
 ## Configuration
 
 Synapse is part of the Nix base layer (`flake.nix` pins it by git rev + sha256)
-and exposed on PATH as `synapse-mcp`, `synapse-index`, `synapse-search`, etc.
+and is installed under `/nix-env/bin` (`/nix-env/bin/synapse-mcp`,
+`/nix-env/bin/synapse-index`, `/nix-env/bin/synapse-search`, etc.). Those
+binaries are also exported on PATH, but Nyx prefers absolute paths in config.
 Bumping to a newer commit: `just update-synapse && just build`.
 
 The active config is selected by the `SYNAPSE_CONFIG` env var:
@@ -108,7 +110,7 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 {
   "mcpServers": {
     "synapse": {
-      "command": "synapse-mcp",
+      "command": "/nix-env/bin/synapse-mcp",
       "env": { "SYNAPSE_MCP_TRANSPORT": "stdio" },
       "trust": true
     }
