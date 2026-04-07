@@ -18,6 +18,9 @@ Synapse is a semantic retrieval and discovery engine for markdown knowledge base
 | `synapse_health` | Check runtime readiness, DB status, provider config | — |
 | `synapse_index` | Index a markdown folder into the vector store | `vault_root`, `db_path` |
 | `synapse_search` | Semantic search across indexed content | `query`, `mode` (note/chunk/hybrid), `limit` |
+| `synapse_health_for_workspace` | Check readiness for the configured active workspace | `workspace` |
+| `synapse_index_for_workspace` | Index the configured active workspace | `workspace` |
+| `synapse_search_for_workspace` | Search the configured active workspace | `workspace`, `query`, `mode`, `limit` |
 | `synapse_discover` | Find unlinked but semantically related documents | `threshold`, `max` |
 | `synapse_validate` | Report broken `[[wikilinks]]` in indexed vault | — |
 
@@ -31,6 +34,20 @@ Synapse is a semantic retrieval and discovery engine for markdown knowledge base
 | `synapse_cipher_review_stubs` | Review proposed stub notes before creation | — |
 
 ## Workflow: always retrieval first
+
+### Preferred for weaker/local models: workspace facade first
+
+1. Use `synapse_health_for_workspace(workspace="current")`
+2. Use `synapse_index_for_workspace(workspace="current")`
+3. Use `synapse_search_for_workspace(workspace="current", mode="hybrid", query="...")`
+
+This is the default path for weaker local runtimes because it removes raw path
+arguments from the model-facing surface.
+
+### Canonical path-bearing workflow
+
+Use `synapse_health`, `synapse_index`, and `synapse_search` with explicit
+`vault_root` and `db_path` only when you need exact path control.
 
 1. **Check health** before any operation: `synapse_health`
 2. **Index** if the DB is missing or stale: `synapse_index`
@@ -62,6 +79,11 @@ Discovery scoring: `min(1.0, 0.75 * semantic + metadata_score + graph_score)`
 ### Search for a topic
 ```
 synapse_search(query="rate limiting patterns", mode="hybrid", limit=10)
+```
+
+### Search the active workspace
+```
+synapse_search_for_workspace(query="rate limiting patterns", workspace="current", mode="hybrid", limit=10)
 ```
 
 ### Find hidden connections in a vault
@@ -119,6 +141,45 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 ```
 `SYNAPSE_CONFIG` is inherited from the container environment, so the MCP
 entry does not need to re-specify it.
+
+## Local-model guidance
+
+- Prefer `*_for_workspace` tools first for Qwen, Gemma, and other weaker local
+  runtimes
+- Treat raw-path tools as advanced overrides, not as the default agent path
+- For notes intended for indexing, include both metadata fields and a Markdown
+  `# Title` heading so indexed `documents.title` is populated reliably
+- When building a corpus from retrieved sources, write notes from persisted
+  source artifacts rather than from memory of a prior tool result
+- Prefer `mode="hybrid"` unless the task clearly needs note-only or chunk-only retrieval
+- Stage work explicitly:
+  1. health
+  2. index
+  3. search
+  4. optional reasoning
+- Keep the query semantic and precise; avoid overloading one search with many unrelated questions
+
+Recommended note skeleton for indexed markdown:
+```
+TEST_ID: ...
+QUERY: ...
+SOURCE_URL: ...
+TITLE: ...
+AUTHORS: ...
+PUBLISHED: ...
+RETRIEVED_AT: ...
+
+# Actual Document Title
+
+## Abstract
+...
+
+## Extract
+...
+
+## Why Selected
+...
+```
 
 ## Important constraints
 

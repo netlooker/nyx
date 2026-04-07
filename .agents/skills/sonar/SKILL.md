@@ -18,10 +18,30 @@ Sonar is a deterministic live-web evidence engine. It searches the web through a
 | `sonar_search` | Search the live web and return ranked evidence | `query`, `limit`, `freshness`, `engines`, `categories`, `language`, `force_refresh` |
 | `sonar_fetch` | Fetch one URL and cache its metadata | `url`, `force_refresh` |
 | `sonar_extract` | Extract readable text from a URL or cached document | `url` or `document_id`, `force_refresh` |
+| `sonar_find_papers` | Return curated scientific paper candidates for a topic | `query`, `count`, `profile` |
+| `sonar_prepare_paper_set` | Search, filter, and extract a prepared scientific paper set in one call | `query`, `count`, `profile`, `direct_only` |
+| `sonar_collect_sources_for_topic` | Return a compact structured source bundle for a topic | `topic`, `max_results`, `corpus` |
 
-All four tools are deterministic — no reasoning model involved.
+All Sonar tools are deterministic — no reasoning model involved.
 
-## Workflow: search → fetch → extract
+## Workflow Choice
+
+### Preferred for weaker/local models: high-level facade first
+
+1. Start with `sonar_prepare_paper_set`, `sonar_find_papers`, or `sonar_collect_sources_for_topic`
+2. Persist the structured result to disk before summarizing or writing notes
+3. Use the low-level tools only when you need tighter control over ranking, fetch, or extraction
+
+This is the default path for weaker local runtimes such as Gemma/Qwen because
+it collapses the fragile `search -> fetch -> extract -> choose` loop into fewer
+transitions.
+
+For agentic corpus-building flows, treat the high-level Sonar result as source
+material, not as disposable tool output. Save the returned JSON and any per-paper
+extracts you need before writing downstream notes. Large tool payloads can be
+truncated in transcripts, while persisted artifacts remain inspectable.
+
+### Strong-model or manual workflow: search → fetch → extract
 
 1. **Check health** if unsure about connectivity: `sonar_health`
 2. **Search** for ranked web results: `sonar_search`
@@ -69,6 +89,22 @@ Sonar returns structured errors with a `retryable` hint:
 | `not_found` | URL does not exist or document_id invalid | Check the URL or ID |
 
 ## Practical patterns
+
+### Prepare a scientific paper set in one call
+```
+sonar_prepare_paper_set(query="prompt engineering scientific papers", count=5, profile="scientific", direct_only=true)
+```
+
+### Collect a compact source bundle for a topic
+```
+sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
+```
+
+### Persist the prepared source set before note writing
+```
+bundle = sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
+# Save the structured bundle to artifacts/source_bundle.json before summarizing it
+```
 
 ### Search for a topic
 ```
@@ -134,6 +170,22 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 ```
 `SONAR_CONFIG` is inherited from the container environment, so the MCP
 entry does not need to re-specify it.
+
+## Local-model guidance
+
+- Prefer the high-level paper/source tools for Qwen, Gemma, and other weaker
+  local runtimes
+- Avoid asking a weak model to orchestrate many Sonar steps in one prompt
+- Persist Sonar outputs to disk before compressing them into notes or summaries
+- Prefer durable artifacts such as `artifacts/source_bundle.json` and per-source
+  text files over relying on long tool results in the transcript
+- If you need multi-step evidence gathering, stage it:
+  1. search or prepare
+  2. persist the result set
+  3. inspect the persisted artifacts
+  4. only then fetch/extract more
+- Prefer one high-value Sonar call over long search/fetch/extract loops
+- Return or request structured JSON whenever possible
 
 ## Important constraints
 
