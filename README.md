@@ -50,6 +50,22 @@ $EDITOR secrets/qwen-settings.json
 
 `sonar.toml` is optional. The baked image default already targets the internal `http://searxng:8080` sidecar and stores its SQLite state under `/data`. Add `secrets/sonar.toml` only when you need to override those runtime defaults.
 
+### Gemma 4 + llama.cpp tool calling
+
+If you serve Gemma 4 from `llama.cpp` and want reliable tool calls with OpenClaw or Qwen, two pieces matter together:
+
+- expose the model through the Anthropic-style tool-calling path in your agent config
+- start `llama-server` with Jinja enabled and the upstream Gemma 4 chat template tracked in Nyx at [container/gemma4-upstream.jinja](/Users/netlooker/projects/nyx/container/gemma4-upstream.jinja)
+
+Typical `llama-server` flags:
+
+```bash
+--jinja \
+--chat-template-file /path/to/nyx/container/gemma4-upstream.jinja
+```
+
+Without the Anthropic-style tool format plus the upstream Gemma 4 Jinja template, local Gemma tool calling is noticeably less reliable.
+
 Full config reference in [GUIDE.md](GUIDE.md).
 
 ### 3. Bake
@@ -99,6 +115,7 @@ container/
   Dockerfile               — Multi-stage build: Nix base → Debian-slim + OpenClaw/Qwen metadata
   docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
   entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
+  gemma4-upstream.jinja    — Upstream Gemma 4 llama.cpp chat template used for reliable tool calling
   openclaw.json5.example   — OpenClaw template config — copy to secrets/ and fill in your values
   qwen.json5.example       — Qwen Code template config — copy to secrets/qwen-settings.json
   sonar.toml.example       — Sonar template config — copy to secrets/sonar.toml to override image defaults
