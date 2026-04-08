@@ -126,8 +126,9 @@ qwen -p 'use sonar_prepare_paper_set for "prompt engineering scientific papers" 
 
 High-level Sonar preparation now auto-persists durable artifacts by default, so
 the usual workflow is to read the returned `bundle` object and then inspect the
-persisted `prepared_source_bundle.json` and `source_XX.txt` files before
-writing notes.
+persisted bundle under `bundle.bundle_path`, including
+`prepared_source_bundle.json` and any `source_XX.txt` files, before writing
+notes.
 
 ## Recommended Nyx pattern
 
@@ -136,7 +137,7 @@ For Sonar plus Synapse tasks inside Nyx, prefer this sequence:
 1. Sonar high-level collection:
    `sonar_prepare_paper_set` or `sonar_collect_sources_for_topic`
 2. Inspect the returned `bundle` object
-3. Inspect the persisted `prepared_source_bundle.json` and any per-paper sidecars
+3. Inspect `bundle.bundle_path` plus `prepared_source_bundle.json` and any per-paper sidecars
 4. Write notes that include both metadata lines and a Markdown `# Title` heading
 5. Synapse workspace pass:
    `synapse_health_for_workspace`
@@ -148,8 +149,8 @@ This matches the flow that tested well in practice.
 
 Recommended persisted artifact names:
 
-- `artifacts/prepared_source_bundle.json`
-- `artifacts/source_01.txt`, `artifacts/source_02.txt`, ...
+- `<bundle_path>/prepared_source_bundle.json`
+- `<bundle_path>/source_01.txt`, `<bundle_path>/source_02.txt`, ...
 - `ingestion_vault/paper-01.md`, `paper-02.md`, ...
 
 ## Token monitoring

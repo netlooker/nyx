@@ -105,7 +105,7 @@ sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpu
 ### Persist the prepared source set before note writing
 ```
 bundle = sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
-# Inspect bundle and the persisted artifacts before summarizing them
+# Inspect bundle["bundle_path"] and the persisted artifacts before summarizing them
 ```
 
 ### Canonical persisted artifacts
@@ -117,7 +117,7 @@ source_02.txt
 ```
 
 High-level preparation now writes `prepared_source_bundle.json` plus optional
-`source_XX.txt` sidecars by default.
+`source_XX.txt` sidecars by default under the returned `bundle_path`.
 
 ### Search for a topic
 ```
@@ -192,8 +192,8 @@ entry does not need to re-specify it.
 - Prefer the returned `bundle` object over compatibility `sources` fields when both exist
 - High-level preparation already persists durable artifacts by default; inspect
   those files before compressing results into notes or summaries
-- Prefer `prepared_source_bundle.json` and per-source `source_XX.txt` sidecars
-  over relying on long tool results in the transcript
+- Prefer `bundle_path` plus `prepared_source_bundle.json` and `source_XX.txt`
+  sidecars over relying on long tool results in the transcript
 - If you need multi-step evidence gathering, stage it:
   1. search or prepare
   2. inspect the persisted bundle

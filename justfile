@@ -86,15 +86,19 @@ check-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     nix eval --raw ".#packages.$system.sbom-dir.name" >/dev/null
 
-# Prepare the Sonar -> Synapse OpenClaw TUI e2e run layout and prompt
+# Prepare the deterministic-Sonar -> OpenClaw TUI -> Synapse e2e run layout and prompt
 e2e-sonar-synapse-prepare:
     python3 scripts/e2e_openclaw_sonar_synapse.py prepare
 
-# Rebuild Nyx, restart the stack, and prepare the Sonar -> Synapse e2e run
+# Rebuild Nyx, restart the stack, and prepare the deterministic-Sonar -> OpenClaw/Synapse e2e run
 e2e-sonar-synapse-prepare-rebuild:
     python3 scripts/e2e_openclaw_sonar_synapse.py prepare --rebuild
 
-# Verify a completed Sonar -> Synapse e2e run
+# Re-run only the deterministic Sonar source-collection phase for an existing test id
+e2e-sonar-synapse-collect-sources TEST_ID:
+    python3 scripts/e2e_openclaw_sonar_synapse.py collect-sources --test-id {{TEST_ID}}
+
+# Verify a completed deterministic-Sonar -> OpenClaw/Synapse e2e run
 e2e-sonar-synapse-verify TEST_ID:
     python3 scripts/e2e_openclaw_sonar_synapse.py verify --test-id {{TEST_ID}}
 
@@ -123,3 +127,24 @@ update-synapse:
       flake.nix
     rm -f flake.nix.bak
     echo "flake.nix updated — run 'just build' to rebuild the image"
+
+# Bump Sonar to the latest main commit in the container runtime pin
+update-sonar:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    new_rev="$(git ls-remote https://github.com/netlooker/sonar.git main | cut -f1)"
+    echo "latest main: $new_rev"
+    current_rev="$(grep -oE 'ARG SONAR_COMMIT=[0-9a-f]{40}' container/Dockerfile | cut -d= -f2)"
+    if [ "$new_rev" = "$current_rev" ]; then
+      echo "already up to date ($current_rev)"
+      exit 0
+    fi
+    echo "rev:  $current_rev → $new_rev"
+    sed -i.bak \
+      -e "s|ARG SONAR_COMMIT=$current_rev|ARG SONAR_COMMIT=$new_rev|" \
+      container/Dockerfile
+    sed -i.bak \
+      -e "s|SONAR_COMMIT: \${SONAR_COMMIT:-$current_rev}|SONAR_COMMIT: \${SONAR_COMMIT:-$new_rev}|" \
+      container/docker-compose.yml
+    rm -f container/Dockerfile.bak container/docker-compose.yml.bak
+    echo "Sonar runtime pin updated — run 'just build' to rebuild the image"

@@ -11,7 +11,7 @@ ARG SYNAPSE_VERSION=flake-pinned
 # build time, battle-test it inside Nyx, and only later decide whether it
 # belongs in flake.nix.
 ARG SONAR_REF=main
-ARG SONAR_COMMIT=2b93d7540d4f07987f14cbd070f69554779b9dbb
+ARG SONAR_COMMIT=5e7a13370c186585fcde68870d61cf4811b012d5
 ARG ENABLE_SBOM=false
 ARG SBOM_PATH=
 
@@ -105,6 +105,7 @@ RUN ln -sf /nix-env/bin/bash /bin/sh && \
 # versions before invoking docker compose so labels and build-info stay auditable.
 RUN npm config set prefix /usr/local && \
     npm install -g "openclaw@${OPENCLAW_VERSION}" && \
+    npm install -g "grammy" "@grammyjs/runner" "@grammyjs/transformer-throttler" && \
     npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" && \
     python -m venv /opt/sonar && \
     /opt/sonar/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \

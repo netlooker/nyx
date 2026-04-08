@@ -138,6 +138,7 @@ just e2e-sonar-synapse-prepare # prepare the deterministic-Sonar -> OpenClaw TUI
 just e2e-sonar-synapse-prepare-rebuild # rebuild Nyx and prepare the same e2e run
 just e2e-sonar-synapse-collect-sources <test_id> # rerun only the deterministic Sonar source-collection phase
 just e2e-sonar-synapse-verify <test_id> # verify source artifacts, notes, transcript, and Synapse DB for one run
+just update-sonar # bump the container-layer Sonar commit pin to the latest main
 ```
 
 Agent dashboard at `http://localhost:18789` (enable `gateway.bind: 'lan'` + password via `secrets/.env`).

@@ -38,14 +38,15 @@ data/workspace/e2e/<test_id>/
     prompt.txt
     openclaw-tui-command.sh
     preflight.json
-    source_manifest.json
+    prepared_source_bundle.json
+    prepared_sources_bundle.md
     source_collection.log
     sources/
-      paper-01.json
-      paper-01.txt
+      source_01.json
+      source_01.txt
       ...
-      paper-05.json
-      paper-05.txt
+      source_05.json
+      source_05.txt
     summary.json
     summary.md
     final_answer.md
@@ -72,7 +73,7 @@ This does all of the following by default:
 
 - creates the isolated run layout
 - optionally validates the stack with preflight
-- runs deterministic Sonar paper collection into `artifacts/source_manifest.json`
+- runs deterministic Sonar paper collection into `artifacts/prepared_source_bundle.json`
 - writes the canonical TUI prompt and exact `openclaw tui` launch script
 
 Prepare a run and rebuild Nyx first:
@@ -97,7 +98,7 @@ Run that command as-is. It opens `openclaw tui` with:
 
 - a dedicated session key
 - the canonical operator prompt already injected
-- instructions to consume only the prepared source manifest and source files
+- instructions to consume only the prepared Sonar bundle and source files
 - the Synapse-only task flow baked in
 - a longer agent timeout
 
@@ -116,26 +117,25 @@ The harness runs Sonar directly inside the Nyx container with a dedicated per-ru
 It:
 
 - checks Sonar runtime readiness
-- runs several paper-oriented searches
-- filters toward direct paper landing pages
-- fetches and extracts candidate papers
+- uses Sonar's native high-level paper-preparation flow
 - persists exactly 5 selected sources under `artifacts/sources/`
-- records the fixed input set in `artifacts/source_manifest.json`
+- records the fixed input set in `artifacts/prepared_source_bundle.json`
+- writes a readable bundle summary in `artifacts/prepared_sources_bundle.md`
 
 This phase is model-agnostic. No LLM is involved in Sonar search, fetch, or extraction.
 
 The current collector is intentionally conservative:
 
-- it prefers direct `arxiv.org/abs/...` pages
-- it rejects weak or non-paper-like results
-- it fails if it cannot produce 5 extractable direct paper pages
+- it uses Sonar's scientific paper-preparation bundle contract
+- it fails if Sonar cannot produce 5 prepared paper sources
+- it preserves bundle provenance and per-source sidecars for downstream note-writing
 
 ## Phase 2: OpenClaw TUI + Synapse
 
 The TUI prompt no longer asks the model to search the web. It instead tells the agent to:
 
-1. read `artifacts/source_manifest.json`
-2. read the prepared `paper-0N.json` or `paper-0N.txt` files
+1. read `artifacts/prepared_source_bundle.json`
+2. read the prepared `source_0N.json` or `source_0N.txt` files
 3. call `synapse_health_for_workspace(workspace="current")`
 4. write exactly 5 markdown notes into the dedicated `ingestion_vault`
 5. call `synapse_index_for_workspace(workspace="current")`
@@ -157,7 +157,7 @@ This reduction is what makes the e2e more model-tolerant. The model only has to 
   - `/app/skills/synapse/SKILL.md`
   - `/opt/sonar/bin/sonar-mcp`
   - `/nix-env/bin/synapse-mcp`
-- the prepared source manifest exists and names exactly 5 selected sources
+- the prepared bundle exists and names exactly 5 selected sources
 - each prepared source JSON and text artifact exists
 - exactly 5 notes exist under the dedicated ingestion vault
 - filenames match `paper-01.md` through `paper-05.md`
@@ -200,5 +200,5 @@ A valid rebuilt image should expose:
 ## Practical Notes
 
 - If you want to debug only the TUI/Synapse phase, you can reuse an existing run and skip source collection.
-- If deterministic source collection fails, inspect `artifacts/source_collection.log` and `artifacts/source_manifest.json` first.
-- If the model still misbehaves during the TUI phase, the prepared source manifest keeps the failure surface small and reproducible.
+- If deterministic source collection fails, inspect `artifacts/source_collection.log` and `artifacts/prepared_source_bundle.json` first.
+- If the model still misbehaves during the TUI phase, the prepared Sonar bundle keeps the failure surface small and reproducible.

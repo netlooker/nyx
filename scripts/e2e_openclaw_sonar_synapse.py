@@ -39,8 +39,8 @@ class RunLayout:
     host_manifest_path: Path
     host_prompt_path: Path
     host_tui_command_path: Path
-    host_source_manifest_path: Path
-    host_source_bundle_path: Path
+    host_prepared_bundle_path: Path
+    host_bundle_summary_path: Path
     host_sonar_db_path: Path
     host_source_dir: Path
     host_active_synapse_config_path: Path
@@ -48,8 +48,8 @@ class RunLayout:
     container_vault_root: str
     container_artifacts_dir: str
     container_db_path: str
-    container_source_manifest_path: str
-    container_source_bundle_path: str
+    container_prepared_bundle_path: str
+    container_bundle_summary_path: str
     container_sonar_db_path: str
     container_source_dir: str
     container_active_synapse_config_path: str
@@ -152,8 +152,8 @@ def command_prepare(args: argparse.Namespace) -> int:
             "host_sonar_db_path": str(layout.host_sonar_db_path),
             "host_prompt_path": str(layout.host_prompt_path),
             "host_tui_command_path": str(layout.host_tui_command_path),
-            "host_source_manifest_path": str(layout.host_source_manifest_path),
-            "host_source_bundle_path": str(layout.host_source_bundle_path),
+            "host_prepared_bundle_path": str(layout.host_prepared_bundle_path),
+            "host_bundle_summary_path": str(layout.host_bundle_summary_path),
             "host_source_dir": str(layout.host_source_dir),
             "host_active_synapse_config_path": str(layout.host_active_synapse_config_path),
             "container_root": layout.container_root,
@@ -161,8 +161,8 @@ def command_prepare(args: argparse.Namespace) -> int:
             "container_artifacts_dir": layout.container_artifacts_dir,
             "container_db_path": layout.container_db_path,
             "container_sonar_db_path": layout.container_sonar_db_path,
-            "container_source_manifest_path": layout.container_source_manifest_path,
-            "container_source_bundle_path": layout.container_source_bundle_path,
+            "container_prepared_bundle_path": layout.container_prepared_bundle_path,
+            "container_bundle_summary_path": layout.container_bundle_summary_path,
             "container_source_dir": layout.container_source_dir,
             "container_active_synapse_config_path": layout.container_active_synapse_config_path,
         },
@@ -183,13 +183,13 @@ def command_prepare(args: argparse.Namespace) -> int:
             return 1
 
     if not args.skip_source_collection:
-        source_manifest = collect_sources_for_layout(layout, args.query)
+        prepared_bundle = collect_sources_for_layout(layout, args.query)
         manifest["source_collection"] = {
             "completed_at": utc_now_iso(),
-            "selected_count": len(source_manifest.get("selected_sources", [])),
-            "manifest_path": str(layout.host_source_manifest_path),
+            "selected_count": int(prepared_bundle.get("selected_count", len(prepared_bundle.get("sources", [])))),
+            "bundle_path": str(layout.host_prepared_bundle_path),
         }
-    if layout.host_source_manifest_path.exists():
+    if layout.host_prepared_bundle_path.exists():
         write_prepared_source_bundle(layout)
     write_active_synapse_config(layout)
 
@@ -208,8 +208,8 @@ def command_prepare(args: argparse.Namespace) -> int:
     if not args.skip_source_collection:
         summary_lines.extend(
             [
-                f"Prepared sources: {layout.host_source_manifest_path}",
-                f"Prepared source bundle: {layout.host_source_bundle_path}",
+                f"Prepared bundle: {layout.host_prepared_bundle_path}",
+                f"Prepared bundle summary: {layout.host_bundle_summary_path}",
                 f"Prepared source files: {layout.host_source_dir}",
                 f"Active Synapse config: {layout.host_active_synapse_config_path}",
             ]
@@ -224,7 +224,7 @@ def command_collect_sources(args: argparse.Namespace) -> int:
     collect_sources_for_layout(layout, args.query)
     write_prepared_source_bundle(layout)
     write_active_synapse_config(layout)
-    print_summary(f"Collected deterministic Sonar sources for {layout.test_id}: {layout.host_source_manifest_path}")
+    print_summary(f"Collected deterministic Sonar sources for {layout.test_id}: {layout.host_prepared_bundle_path}")
     return 0
 
 
@@ -268,7 +268,7 @@ def command_verify(args: argparse.Namespace) -> int:
     db_info = inspect_synapse_db(layout)
     checks.extend(db_info["checks"])
 
-    source_info = inspect_source_manifest(layout, manifest["query"])
+    source_info = inspect_prepared_bundle(layout, manifest["query"])
     checks.extend(source_info["checks"])
 
     transcript_info = inspect_transcript(layout, tool_events, final_answer, note_info["notes"], manifest)
@@ -290,7 +290,7 @@ def command_verify(args: argparse.Namespace) -> int:
         ],
         "tool_events": tool_events,
         "db": db_info["db"],
-        "source_manifest": source_info["manifest"],
+        "prepared_bundle": source_info["bundle"],
     }
     write_json(layout.host_artifacts_dir / "session.json", session_record)
     write_json(layout.host_artifacts_dir / "selected_sources.json", artifacts["selected_sources"])
@@ -298,10 +298,10 @@ def command_verify(args: argparse.Namespace) -> int:
     write_json(layout.host_artifacts_dir / "tool_events.json", tool_events)
     write_text(layout.host_artifacts_dir / "final_answer.md", final_answer + ("\n" if final_answer else ""))
     write_json(layout.host_artifacts_dir / "db_summary.json", db_info["db"])
-    write_json(layout.host_artifacts_dir / "source_manifest_copy.json", source_info["manifest"])
+    write_json(layout.host_artifacts_dir / "prepared_source_bundle_copy.json", source_info["bundle"])
     write_json(
         layout.host_artifacts_dir / "sonar_shortlist.json",
-        source_info["manifest"].get("search_runs", []),
+        source_info["bundle"].get("sources", []),
     )
 
     return finalize_verification(layout, manifest, checks, artifacts, note_info["notes"])
@@ -369,8 +369,8 @@ def build_layout(test_id: str | None) -> RunLayout:
         host_manifest_path=host_root / "manifest.json",
         host_prompt_path=host_artifacts_dir / "prompt.txt",
         host_tui_command_path=host_artifacts_dir / "openclaw-tui-command.sh",
-        host_source_manifest_path=host_artifacts_dir / "source_manifest.json",
-        host_source_bundle_path=host_artifacts_dir / "prepared_sources_bundle.md",
+        host_prepared_bundle_path=host_artifacts_dir / "prepared_source_bundle.json",
+        host_bundle_summary_path=host_artifacts_dir / "prepared_sources_bundle.md",
         host_sonar_db_path=host_sonar_db_path,
         host_source_dir=host_source_dir,
         host_active_synapse_config_path=ACTIVE_SYNAPSE_CONFIG,
@@ -378,8 +378,8 @@ def build_layout(test_id: str | None) -> RunLayout:
         container_vault_root=f"{container_root}/ingestion_vault",
         container_artifacts_dir=f"{container_root}/artifacts",
         container_db_path=f"{container_root}/synapse.sqlite",
-        container_source_manifest_path=f"{container_root}/artifacts/source_manifest.json",
-        container_source_bundle_path=f"{container_root}/artifacts/prepared_sources_bundle.md",
+        container_prepared_bundle_path=f"{container_root}/artifacts/prepared_source_bundle.json",
+        container_bundle_summary_path=f"{container_root}/artifacts/prepared_sources_bundle.md",
         container_sonar_db_path=f"{container_root}/sonar.sqlite",
         container_source_dir=f"{container_root}/artifacts/sources",
         container_active_synapse_config_path="/data/workspace/e2e/active-synapse.toml",
@@ -435,45 +435,54 @@ def collect_sources_for_layout(layout: RunLayout, query: str) -> dict[str, Any]:
         raise RuntimeError(
             f"Deterministic Sonar collection failed for {layout.test_id}: {(result.stderr or result.stdout).strip()}"
         )
-    return read_json(layout.host_source_manifest_path)
+    return read_json(layout.host_prepared_bundle_path)
 
 
 def write_prepared_source_bundle(layout: RunLayout) -> None:
-    manifest = read_json(layout.host_source_manifest_path)
+    bundle = read_json(layout.host_prepared_bundle_path)
     lines = [
         "# Prepared Sources Bundle",
         "",
-        f"TEST_ID: {manifest.get('test_id', layout.test_id)}",
-        f"QUERY: {manifest.get('query', DEFAULT_QUERY)}",
+        f"TEST_ID: {layout.test_id}",
+        f"QUERY: {bundle.get('query', DEFAULT_QUERY)}",
+        f"BUNDLE_ID: {bundle.get('bundle_id', '')}",
+        f"BUNDLE_PATH: {bundle.get('bundle_path', '')}",
         "",
         "Read this bundle as the single prepared input set for the TUI phase.",
         "Do not substitute different papers.",
         "",
     ]
 
-    for index, selected in enumerate(manifest.get("selected_sources", []), start=1):
-        json_path = ROOT / selected["json_path"].replace("/data/workspace/", "data/workspace/")
-        payload = read_json(json_path)
+    for index, payload in enumerate(bundle.get("sources", []), start=1):
         lines.extend(
             [
-                f"## Paper {index}: {payload.get('file_name', selected.get('file_name', ''))}",
-                f"SOURCE_URL: {payload.get('source_url', '')}",
+                f"## Paper {index}: paper-{index:02d}.md",
+                f"SOURCE_ID: {payload.get('source_id', '')}",
+                f"ORIGIN_URL: {payload.get('origin_url', '')}",
+                f"SOURCE_URL: {payload.get('url', '')}",
+                f"DIRECT_PAPER_URL: {payload.get('direct_paper_url', '')}",
                 f"TITLE: {payload.get('title', '')}",
-                f"AUTHORS: {payload.get('authors', '')}",
+                f"AUTHORS: {'; '.join(payload.get('authors', []))}",
                 f"PUBLISHED: {payload.get('published', '')}",
-                f"WORD_COUNT: {payload.get('word_count', '')}",
-                f"SEARCH_QUERY: {payload.get('search_query', '')}",
+                f"SOURCE_TYPE: {payload.get('source_type', '')}",
+                f"EXTRACTION_STATUS: {payload.get('extraction_status', '')}",
+                f"EXTRACTION_METHOD: {payload.get('extraction_method', '')}",
+                f"FULL_TEXT_PATH: {payload.get('full_text_path', '')}",
+                f"SELECTION_REASON: {payload.get('selection_reason', '')}",
                 "",
-                "### Abstract / Excerpt",
-                payload.get("excerpt", "").strip(),
+                "### Summary",
+                str(payload.get("summary", "")).strip(),
+                "",
+                "### Abstract",
+                str(payload.get("abstract", "")).strip(),
                 "",
                 "### Extracted Text",
-                payload.get("text", "").strip(),
+                str(payload.get("full_text", "")).strip(),
                 "",
             ]
         )
 
-    write_text(layout.host_source_bundle_path, "\n".join(lines).rstrip() + "\n")
+    write_text(layout.host_bundle_summary_path, "\n".join(lines).rstrip() + "\n")
 
 
 def render_sonar_collection_script(layout: RunLayout, query: str) -> str:
@@ -481,129 +490,81 @@ def render_sonar_collection_script(layout: RunLayout, query: str) -> str:
         "test_id": layout.test_id,
         "query": query,
         "db_path": layout.container_sonar_db_path,
-        "manifest_path": layout.container_source_manifest_path,
+        "prepared_bundle_path": layout.container_prepared_bundle_path,
+        "artifacts_dir": layout.container_artifacts_dir,
         "source_dir": layout.container_source_dir,
-        "queries": [
-            f"site:arxiv.org/abs {query}",
-            "site:arxiv.org/abs artificial intelligence computer science research paper",
-            "site:arxiv.org/abs machine learning computer science paper",
-            "site:arxiv.org/abs large language models computer science paper",
-            "site:arxiv.org/abs AI for computer science education paper",
-        ],
     }
     payload_json = json.dumps(payload)
     return f"""#!/opt/sonar/bin/python
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
+from sonar.bundles import ARTIFACT_FILENAME
 from sonar.service_api import (
-    ExtractRequest,
-    FetchRequest,
+    CollectSourcesForTopicRequest,
     HealthRequest,
-    SearchRequest,
-    extract_document_record,
-    fetch_document_record,
+    collect_sources_for_topic,
     runtime_requirements,
-    search_web,
 )
 
 CONFIG = json.loads({payload_json!r})
 TEST_ID = CONFIG["test_id"]
 QUERY = CONFIG["query"]
 DB_PATH = CONFIG["db_path"]
-MANIFEST_PATH = Path(CONFIG["manifest_path"])
+PREPARED_BUNDLE_PATH = Path(CONFIG["prepared_bundle_path"])
+ARTIFACTS_DIR = Path(CONFIG["artifacts_dir"])
 SOURCE_DIR = Path(CONFIG["source_dir"])
-SEARCH_QUERIES = CONFIG["queries"]
 
 SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 health = runtime_requirements(HealthRequest(db_path=DB_PATH)).model_dump()
-search_runs = []
-selected = []
-failures = []
-seen_urls = set()
+response = collect_sources_for_topic(
+    CollectSourcesForTopicRequest(
+        topic=QUERY,
+        db_path=DB_PATH,
+        max_results=5,
+        corpus="papers",
+        profile="scientific",
+        direct_only=False,
+        persist=True,
+        output_dir=str(ARTIFACTS_DIR),
+        include_sidecars=True,
+    )
+)
+bundle = response.bundle.model_dump()
+bundle_dir = Path(bundle["bundle_path"])
+persisted_manifest = bundle_dir / ARTIFACT_FILENAME
+shutil.copyfile(persisted_manifest, PREPARED_BUNDLE_PATH)
 
-def looks_like_paper(url: str, title: str, snippet: str) -> bool:
-    text = f"{{title}}\\n{{snippet}}".lower()
-    if "/abs/" not in url:
-        return False
-    return any(token in text for token in ["paper", "research", "artificial intelligence", "machine learning", "computer science", "language model", "neural"])
+for index, source in enumerate(bundle.get("sources", []), start=1):
+    source_json_path = SOURCE_DIR / f"source_{{index:02d}}.json"
+    source_txt_path = SOURCE_DIR / f"source_{{index:02d}}.txt"
+    source_json_path.write_text(json.dumps(source, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
 
-for search_query in SEARCH_QUERIES:
-    response = search_web(SearchRequest(query=search_query, db_path=DB_PATH, limit=10))
-    run = response.model_dump()
-    search_runs.append(run)
-    for item in response.results:
-        if len(selected) >= 5:
-            break
-        url = item.url
-        if url in seen_urls:
-            continue
-        seen_urls.add(url)
-        if not looks_like_paper(url, item.title, item.snippet):
-            failures.append({{"stage": "filter", "url": url, "reason": "not_direct_paper_like"}})
-            continue
-        try:
-            fetch = fetch_document_record(FetchRequest(url=url, db_path=DB_PATH))
-            extract = extract_document_record(ExtractRequest(url=url, db_path=DB_PATH))
-        except Exception as exc:
-            failures.append({{"stage": "extract", "url": url, "reason": str(exc)}})
-            continue
-        if not extract.text or extract.word_count < 120:
-            failures.append({{"stage": "extract", "url": url, "reason": "too_short"}})
-            continue
-        index = len(selected) + 1
-        file_stem = f"paper-{{index:02d}}"
-        paper_json = SOURCE_DIR / f"{{file_stem}}.json"
-        paper_txt = SOURCE_DIR / f"{{file_stem}}.txt"
-        payload = {{
-            "test_id": TEST_ID,
-            "query": QUERY,
-            "file_name": f"{{file_stem}}.md",
-            "source_url": url,
-            "title": extract.title or item.title,
-            "authors": extract.byline or "",
-            "published": extract.published_at or item.published_at,
-            "excerpt": extract.excerpt or "",
-            "word_count": extract.word_count,
-            "text": extract.text,
-            "search_query": search_query,
-            "search_result": item.model_dump(),
-            "fetch": fetch.model_dump(),
-            "extract": extract.model_dump(),
-        }}
-        paper_json.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
-        paper_txt.write_text(extract.text + "\\n", encoding="utf-8")
-        selected.append({{
-            "file_name": payload["file_name"],
-            "source_url": payload["source_url"],
-            "title": payload["title"],
-            "authors": payload["authors"],
-            "published": payload["published"],
-            "excerpt": payload["excerpt"],
-            "word_count": payload["word_count"],
-            "json_path": str(paper_json),
-            "text_path": str(paper_txt),
-            "search_query": payload["search_query"],
-        }})
-    if len(selected) >= 5:
-        break
+    full_text_path = source.get("full_text_path")
+    full_text = source.get("full_text") or ""
+    if full_text_path:
+        shutil.copyfile(full_text_path, source_txt_path)
+    else:
+        source_txt_path.write_text(full_text + ("\\n" if full_text else ""), encoding="utf-8")
 
-manifest = {{
-    "test_id": TEST_ID,
-    "query": QUERY,
-    "health": health,
-    "selected_sources": selected,
-    "search_runs": search_runs,
-    "failures": failures,
-}}
-MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+if bundle.get("selected_count", len(bundle.get("sources", []))) < 5:
+    raise SystemExit(f"Need 5 prepared paper sources, found {{bundle.get('selected_count', len(bundle.get('sources', [])))}}")
 
-if len(selected) < 5:
-    raise SystemExit(f"Need 5 extractable direct paper pages, found {{len(selected)}}")
-
-print(json.dumps({{"status": "ok", "selected_count": len(selected), "manifest_path": str(MANIFEST_PATH)}}, ensure_ascii=False))
+print(
+    json.dumps(
+        {{
+            "status": "ok",
+            "selected_count": bundle.get("selected_count", len(bundle.get("sources", []))),
+            "prepared_bundle_path": str(PREPARED_BUNDLE_PATH),
+            "bundle_id": bundle.get("bundle_id"),
+            "bundle_dir": str(bundle_dir),
+        }},
+        ensure_ascii=False,
+    )
+)
 """
 
 
@@ -612,12 +573,12 @@ def render_prompt(layout: RunLayout, query: str) -> str:
     return f"""You are running the Nyx e2e ingestion scenario.
 
 This run already completed a deterministic, model-agnostic Sonar collection phase.
-Your job is the smaller second phase only: consume the prepared paper sources, write the 5 markdown notes, index them with Synapse, search the dedicated DB, and produce grounded insights.
+Your job is the smaller second phase only: consume the prepared Sonar bundle, write the 5 markdown notes, index them with Synapse, search the dedicated DB, and produce grounded insights.
 
 Obey these constraints exactly:
-- Do not call any `sonar_*` tools in this phase unless the prepared source manifest is missing or unreadable.
+- Do not call any `sonar_*` tools in this phase unless the prepared bundle is missing or unreadable.
 - Do not search the open web yourself.
-- Use only the prepared source manifest and source JSON/text files listed below.
+- Use only the prepared bundle and source JSON/text files listed below.
 - Do not use any existing notes or indexes outside this test run.
 - Do not read from /data/workspace/vault, /data/workspace/ingestion_vault, or any old Synapse DB.
 - For Synapse, prefer only the pathless workspace tools with `workspace="current"`.
@@ -632,15 +593,15 @@ Use only these dedicated paths:
 - Ingestion vault: {layout.container_vault_root}
 - Synapse DB: {layout.container_db_path}
 - Artifacts dir: {layout.container_artifacts_dir}
-- Source manifest: {layout.container_source_manifest_path}
-- Source bundle: {layout.container_source_bundle_path}
+- Prepared bundle: {layout.container_prepared_bundle_path}
+- Bundle summary: {layout.container_bundle_summary_path}
 - Source files dir: {layout.container_source_dir}
 - Active Synapse config: {layout.container_active_synapse_config_path}
 
 Required tool flow:
-1. Read the prepared source manifest at {layout.container_source_manifest_path}.
-2. Read the prepared source bundle at {layout.container_source_bundle_path}.
-3. Only if the bundle is missing or malformed, read individual paper JSON files under {layout.container_source_dir}.
+1. Read the prepared bundle JSON at {layout.container_prepared_bundle_path}.
+2. Read the bundle summary at {layout.container_bundle_summary_path}.
+3. Read the per-source JSON/text files under {layout.container_source_dir} when you need source-level detail.
 4. Run synapse_health_for_workspace with workspace="current" to confirm the run-scoped workspace is active.
 5. Write exactly 5 markdown notes into {layout.container_vault_root} with these exact filenames:
 {filenames}
@@ -655,9 +616,9 @@ Exact tool argument examples:
 - synapse_search_for_workspace(query="cross-paper insights about AI and computer science", workspace="current", mode="hybrid")
 
 Prepared-source rule:
-- Trust the source manifest as the fixed input set for this phase.
-- Prefer the single prepared source bundle over individual source-file reads.
-- Read the bundle once, then proceed to Synapse work.
+- Trust the prepared Sonar bundle as the fixed input set for this phase.
+- Prefer the canonical bundle JSON and persisted sidecars over transcript memory.
+- Use the bundle's `abstract`, `summary`, `full_text`, and provenance fields when writing notes.
 - Do not replace the selected papers with different ones.
 - If a source file is missing, fail clearly instead of improvising a replacement.
 
@@ -795,23 +756,41 @@ def inspect_notes(layout: RunLayout, expected_query: str) -> dict[str, Any]:
     return {"checks": checks, "notes": notes}
 
 
-def inspect_source_manifest(layout: RunLayout, expected_query: str) -> dict[str, Any]:
+def inspect_prepared_bundle(layout: RunLayout, expected_query: str) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
-    if not layout.host_source_manifest_path.exists():
-        checks.append(check_result("source_manifest_exists", False, detail=str(layout.host_source_manifest_path)))
-        return {"checks": checks, "manifest": {}}
+    if not layout.host_prepared_bundle_path.exists():
+        checks.append(check_result("prepared_bundle_exists", False, detail=str(layout.host_prepared_bundle_path)))
+        return {"checks": checks, "bundle": {}}
 
-    manifest = read_json(layout.host_source_manifest_path)
-    checks.append(check_result("source_manifest_exists", True, detail=str(layout.host_source_manifest_path)))
-    checks.append(check_result("source_manifest_query", manifest.get("query") == expected_query, detail=str(manifest.get("query"))))
-    selected = manifest.get("selected_sources", [])
-    checks.append(check_result("source_manifest_selected_count", len(selected) == 5, detail=f"count={len(selected)}"))
-    for item in selected:
-        json_path = ROOT / item["json_path"].replace("/data/workspace/", "data/workspace/")
-        text_path = ROOT / item["text_path"].replace("/data/workspace/", "data/workspace/")
-        checks.append(check_result(f"{item['file_name']}_source_json_exists", json_path.exists(), detail=str(json_path)))
-        checks.append(check_result(f"{item['file_name']}_source_text_exists", text_path.exists(), detail=str(text_path)))
-    return {"checks": checks, "manifest": manifest}
+    bundle = read_json(layout.host_prepared_bundle_path)
+    checks.append(check_result("prepared_bundle_exists", True, detail=str(layout.host_prepared_bundle_path)))
+    checks.append(check_result("prepared_bundle_query", bundle.get("query") == expected_query, detail=str(bundle.get("query"))))
+    checks.append(check_result("prepared_bundle_artifact_type", bundle.get("artifact_type") == "prepared_source_bundle", detail=str(bundle.get("artifact_type"))))
+    checks.append(check_result("prepared_bundle_has_bundle_id", bool(bundle.get("bundle_id")), detail=str(bundle.get("bundle_id"))))
+    sources = bundle.get("sources", [])
+    checks.append(check_result("prepared_bundle_selected_count", len(sources) == 5, detail=f"count={len(sources)}"))
+
+    for index, source in enumerate(sources, start=1):
+        json_path = layout.host_source_dir / f"source_{index:02d}.json"
+        text_path = layout.host_source_dir / f"source_{index:02d}.txt"
+        checks.append(check_result(f"source_{index:02d}_json_exists", json_path.exists(), detail=str(json_path)))
+        checks.append(check_result(f"source_{index:02d}_text_exists", text_path.exists(), detail=str(text_path)))
+        checks.append(check_result(f"source_{index:02d}_source_id", bool(source.get("source_id")), detail=str(source.get("source_id"))))
+        checks.append(check_result(f"source_{index:02d}_title", bool(source.get("title")), detail=str(source.get("title"))))
+        checks.append(check_result(f"source_{index:02d}_url", bool(source.get("url")), detail=str(source.get("url"))))
+        checks.append(check_result(f"source_{index:02d}_summary_or_abstract", bool(source.get("summary") or source.get("abstract")), detail=f"summary={bool(source.get('summary'))} abstract={bool(source.get('abstract'))}"))
+        full_text_path = str(source.get("full_text_path") or "")
+        host_full_text_path = ROOT / full_text_path.replace("/data/workspace/", "data/workspace/") if full_text_path.startswith("/data/workspace/") else None
+        checks.append(check_result(f"source_{index:02d}_full_text_path", bool(full_text_path), detail=full_text_path))
+        checks.append(
+            check_result(
+                f"source_{index:02d}_full_text_path_exists",
+                host_full_text_path is not None and host_full_text_path.exists(),
+                detail=str(host_full_text_path) if host_full_text_path is not None else full_text_path,
+            )
+        )
+
+    return {"checks": checks, "bundle": bundle}
 
 
 def inspect_synapse_db(layout: RunLayout) -> dict[str, Any]:
