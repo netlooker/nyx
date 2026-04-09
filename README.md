@@ -50,6 +50,13 @@ $EDITOR secrets/qwen-settings.json
 
 `sonar.toml` is optional. The baked image default already targets the internal `http://searxng:8080` sidecar and stores its SQLite state under `/data`. Add `secrets/sonar.toml` only when you need to override those runtime defaults.
 
+For weaker local models, Nyx also recommends enabling OpenClaw's built-in tool
+loop detection under `tools.loopDetection` in `secrets/openclaw.json5`. This is
+especially useful when a model gets stuck repeating the same malformed MCP call
+after a schema-validation error. Nyx's example config enables it with a fairly
+strict threshold that is tuned for local-model tool use rather than cloud-model
+tool use.
+
 ### Gemma 4 + llama.cpp tool calling
 
 If you serve Gemma 4 from `llama.cpp` and want reliable tool calls with OpenClaw or Qwen, two pieces matter together:

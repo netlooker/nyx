@@ -37,6 +37,23 @@
     },
   },
 
+  tools: {
+    // Useful for weaker local models that can otherwise repeat the same
+    // malformed MCP/tool call in a loop after a validation failure.
+    loopDetection: {
+      enabled: true,
+      historySize: 30,
+      warningThreshold: 4,
+      criticalThreshold: 6,
+      globalCircuitBreakerThreshold: 8,
+      detectors: {
+        genericRepeat: true,
+        knownPollNoProgress: true,
+        pingPong: true,
+      },
+    },
+  },
+
   // MCP servers — expose external tools to the agent via Model Context Protocol.
   // Docs: https://docs.openclaw.ai/cli/mcp
   // mcp: {
