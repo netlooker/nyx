@@ -150,16 +150,23 @@ entry does not need to re-specify it.
 - For notes intended for indexing, include both metadata fields and a Markdown
   `# Title` heading so indexed `documents.title` is populated reliably
 - When building a corpus from retrieved sources, write notes from persisted
-  Sonar artifacts such as `prepared_source_bundle.json` and `source_XX.txt`
-  rather than from memory of a prior tool result
+  Sonar artifacts rather than from memory of a prior tool result
+- For weaker local-model workflows, use this read order before note writing:
+  1. `prepared_sources_bundle.md`
+  2. `prepared_source_manifest.json`
+  3. only the specific `source_XX.json` or `source_XX.txt` files you need
+  4. the full `prepared_source_bundle.json` only if the compact manifest is
+     missing or clearly inconsistent
 - Prefer Sonar `abstract` and `full_text` fields over lossy transcript snippets
   when preparing Synapse-ready notes
 - Prefer `mode="hybrid"` unless the task clearly needs note-only or chunk-only retrieval
 - Stage work explicitly:
-  1. health
-  2. index
-  3. search
-  4. optional reasoning
+  1. confirm the prepared source set from compact artifacts
+  2. health
+  3. write notes
+  4. index
+  5. search
+  6. optional reasoning
 - Keep the query semantic and precise; avoid overloading one search with many unrelated questions
 
 Recommended note skeleton for indexed markdown:

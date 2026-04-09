@@ -40,6 +40,7 @@ class RunLayout:
     host_prompt_path: Path
     host_tui_command_path: Path
     host_prepared_bundle_path: Path
+    host_compact_bundle_path: Path
     host_bundle_summary_path: Path
     host_sonar_db_path: Path
     host_source_dir: Path
@@ -49,6 +50,7 @@ class RunLayout:
     container_artifacts_dir: str
     container_db_path: str
     container_prepared_bundle_path: str
+    container_compact_bundle_path: str
     container_bundle_summary_path: str
     container_sonar_db_path: str
     container_source_dir: str
@@ -153,6 +155,7 @@ def command_prepare(args: argparse.Namespace) -> int:
             "host_prompt_path": str(layout.host_prompt_path),
             "host_tui_command_path": str(layout.host_tui_command_path),
             "host_prepared_bundle_path": str(layout.host_prepared_bundle_path),
+            "host_compact_bundle_path": str(layout.host_compact_bundle_path),
             "host_bundle_summary_path": str(layout.host_bundle_summary_path),
             "host_source_dir": str(layout.host_source_dir),
             "host_active_synapse_config_path": str(layout.host_active_synapse_config_path),
@@ -162,6 +165,7 @@ def command_prepare(args: argparse.Namespace) -> int:
             "container_db_path": layout.container_db_path,
             "container_sonar_db_path": layout.container_sonar_db_path,
             "container_prepared_bundle_path": layout.container_prepared_bundle_path,
+            "container_compact_bundle_path": layout.container_compact_bundle_path,
             "container_bundle_summary_path": layout.container_bundle_summary_path,
             "container_source_dir": layout.container_source_dir,
             "container_active_synapse_config_path": layout.container_active_synapse_config_path,
@@ -209,6 +213,7 @@ def command_prepare(args: argparse.Namespace) -> int:
         summary_lines.extend(
             [
                 f"Prepared bundle: {layout.host_prepared_bundle_path}",
+                f"Prepared manifest: {layout.host_compact_bundle_path}",
                 f"Prepared bundle summary: {layout.host_bundle_summary_path}",
                 f"Prepared source files: {layout.host_source_dir}",
                 f"Active Synapse config: {layout.host_active_synapse_config_path}",
@@ -370,6 +375,7 @@ def build_layout(test_id: str | None) -> RunLayout:
         host_prompt_path=host_artifacts_dir / "prompt.txt",
         host_tui_command_path=host_artifacts_dir / "openclaw-tui-command.sh",
         host_prepared_bundle_path=host_artifacts_dir / "prepared_source_bundle.json",
+        host_compact_bundle_path=host_artifacts_dir / "prepared_source_manifest.json",
         host_bundle_summary_path=host_artifacts_dir / "prepared_sources_bundle.md",
         host_sonar_db_path=host_sonar_db_path,
         host_source_dir=host_source_dir,
@@ -379,6 +385,7 @@ def build_layout(test_id: str | None) -> RunLayout:
         container_artifacts_dir=f"{container_root}/artifacts",
         container_db_path=f"{container_root}/synapse.sqlite",
         container_prepared_bundle_path=f"{container_root}/artifacts/prepared_source_bundle.json",
+        container_compact_bundle_path=f"{container_root}/artifacts/prepared_source_manifest.json",
         container_bundle_summary_path=f"{container_root}/artifacts/prepared_sources_bundle.md",
         container_sonar_db_path=f"{container_root}/sonar.sqlite",
         container_source_dir=f"{container_root}/artifacts/sources",
@@ -440,6 +447,7 @@ def collect_sources_for_layout(layout: RunLayout, query: str) -> dict[str, Any]:
 
 def write_prepared_source_bundle(layout: RunLayout) -> None:
     bundle = read_json(layout.host_prepared_bundle_path)
+    compact_sources: list[dict[str, Any]] = []
     lines = [
         "# Prepared Sources Bundle",
         "",
@@ -448,12 +456,38 @@ def write_prepared_source_bundle(layout: RunLayout) -> None:
         f"BUNDLE_ID: {bundle.get('bundle_id', '')}",
         f"BUNDLE_PATH: {bundle.get('bundle_path', '')}",
         "",
-        "Read this bundle as the single prepared input set for the TUI phase.",
+        "Read this summary first.",
+        "Read the compact manifest second.",
+        "Read per-source JSON/text sidecars only when you need source-level detail.",
         "Do not substitute different papers.",
         "",
     ]
 
     for index, payload in enumerate(bundle.get("sources", []), start=1):
+        sidecar_json = f"{layout.container_source_dir}/source_{index:02d}.json"
+        sidecar_text = f"{layout.container_source_dir}/source_{index:02d}.txt"
+        compact_sources.append(
+            {
+                "note_file": f"paper-{index:02d}.md",
+                "source_file_json": sidecar_json,
+                "source_file_text": sidecar_text,
+                "source_id": payload.get("source_id", ""),
+                "origin_url": payload.get("origin_url", ""),
+                "url": payload.get("url", ""),
+                "direct_paper_url": payload.get("direct_paper_url", ""),
+                "title": payload.get("title", ""),
+                "authors": payload.get("authors", []),
+                "published": payload.get("published", ""),
+                "source_type": payload.get("source_type", ""),
+                "extraction_status": payload.get("extraction_status", ""),
+                "extraction_method": payload.get("extraction_method", ""),
+                "selection_reason": payload.get("selection_reason", ""),
+                "confidence": payload.get("confidence"),
+                "summary": str(payload.get("summary", "")).strip(),
+                "abstract": str(payload.get("abstract", "")).strip(),
+                "full_text_path": payload.get("full_text_path", ""),
+            }
+        )
         lines.extend(
             [
                 f"## Paper {index}: paper-{index:02d}.md",
@@ -467,6 +501,8 @@ def write_prepared_source_bundle(layout: RunLayout) -> None:
                 f"SOURCE_TYPE: {payload.get('source_type', '')}",
                 f"EXTRACTION_STATUS: {payload.get('extraction_status', '')}",
                 f"EXTRACTION_METHOD: {payload.get('extraction_method', '')}",
+                f"SOURCE_FILE_JSON: {sidecar_json}",
+                f"SOURCE_FILE_TEXT: {sidecar_text}",
                 f"FULL_TEXT_PATH: {payload.get('full_text_path', '')}",
                 f"SELECTION_REASON: {payload.get('selection_reason', '')}",
                 "",
@@ -476,12 +512,18 @@ def write_prepared_source_bundle(layout: RunLayout) -> None:
                 "### Abstract",
                 str(payload.get("abstract", "")).strip(),
                 "",
-                "### Extracted Text",
-                str(payload.get("full_text", "")).strip(),
-                "",
             ]
         )
 
+    compact_bundle = {
+        "artifact_type": "prepared_source_manifest",
+        "bundle_id": bundle.get("bundle_id", ""),
+        "query": bundle.get("query", DEFAULT_QUERY),
+        "selected_count": bundle.get("selected_count", len(compact_sources)),
+        "bundle_path": bundle.get("bundle_path", ""),
+        "sources": compact_sources,
+    }
+    write_json(layout.host_compact_bundle_path, compact_bundle)
     write_text(layout.host_bundle_summary_path, "\n".join(lines).rstrip() + "\n")
 
 
@@ -593,22 +635,24 @@ Use only these dedicated paths:
 - Ingestion vault: {layout.container_vault_root}
 - Synapse DB: {layout.container_db_path}
 - Artifacts dir: {layout.container_artifacts_dir}
+- Prepared manifest: {layout.container_compact_bundle_path}
 - Prepared bundle: {layout.container_prepared_bundle_path}
 - Bundle summary: {layout.container_bundle_summary_path}
 - Source files dir: {layout.container_source_dir}
 - Active Synapse config: {layout.container_active_synapse_config_path}
 
 Required tool flow:
-1. Read the prepared bundle JSON at {layout.container_prepared_bundle_path}.
-2. Read the bundle summary at {layout.container_bundle_summary_path}.
-3. Read the per-source JSON/text files under {layout.container_source_dir} when you need source-level detail.
-4. Run synapse_health_for_workspace with workspace="current" to confirm the run-scoped workspace is active.
-5. Write exactly 5 markdown notes into {layout.container_vault_root} with these exact filenames:
+1. Read the bundle summary at {layout.container_bundle_summary_path}.
+2. Read the compact prepared manifest at {layout.container_compact_bundle_path}.
+3. Read the per-source JSON/text files under {layout.container_source_dir} only when you need source-level detail for a specific paper.
+4. Do not read the full prepared bundle JSON at {layout.container_prepared_bundle_path} unless the compact manifest is missing or inconsistent.
+5. Run synapse_health_for_workspace with workspace="current" to confirm the run-scoped workspace is active.
+6. Write exactly 5 markdown notes into {layout.container_vault_root} with these exact filenames:
 {filenames}
-6. Run synapse_index_for_workspace with workspace="current".
-7. Run synapse_search_for_workspace with workspace="current" and mode="hybrid".
-8. Optional: synapse_discover with db_path={layout.container_db_path} and threshold between 0.20 and 0.40.
-9. Produce a final grounded answer only from the 5 ingested notes.
+7. Run synapse_index_for_workspace with workspace="current".
+8. Run synapse_search_for_workspace with workspace="current" and mode="hybrid".
+9. Optional: synapse_discover with db_path={layout.container_db_path} and threshold between 0.20 and 0.40.
+10. Produce a final grounded answer only from the 5 ingested notes.
 
 Exact tool argument examples:
 - synapse_health_for_workspace(workspace="current")
@@ -617,8 +661,9 @@ Exact tool argument examples:
 
 Prepared-source rule:
 - Trust the prepared Sonar bundle as the fixed input set for this phase.
-- Prefer the canonical bundle JSON and persisted sidecars over transcript memory.
-- Use the bundle's `abstract`, `summary`, `full_text`, and provenance fields when writing notes.
+- Prefer the bundle summary and compact manifest over the full bundle JSON.
+- Use persisted sidecars selectively; do not load giant source text for all papers up front.
+- Use `abstract`, `summary`, and targeted extracts from sidecars when writing notes.
 - Do not replace the selected papers with different ones.
 - If a source file is missing, fail clearly instead of improvising a replacement.
 

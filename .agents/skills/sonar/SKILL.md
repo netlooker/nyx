@@ -30,8 +30,8 @@ All Sonar tools are deterministic — no reasoning model involved.
 
 1. Start with `sonar_prepare_paper_set`, `sonar_find_papers`, or `sonar_collect_sources_for_topic`
 2. Treat the returned `bundle` object as the canonical source handoff
-3. Inspect the auto-persisted prepared bundle on disk before summarizing or writing notes
-3. Use the low-level tools only when you need tighter control over ranking, fetch, or extraction
+3. Read the persisted summary artifact first, then the compact manifest, then per-source sidecars only as needed
+4. Use the low-level tools only when you need tighter control over ranking, fetch, or extraction
 
 This is the default path for weaker local runtimes such as Gemma/Qwen because
 it collapses the fragile `search -> fetch -> extract -> choose` loop into fewer
@@ -42,6 +42,13 @@ material, not as disposable tool output. High-level preparation now auto-persist
 durable artifacts by default. Large tool payloads can still be truncated in
 transcripts, so downstream note-writing should read the persisted bundle and
 sidecars rather than rely on transcript retention.
+
+Preferred read order for weaker local models:
+
+1. `prepared_sources_bundle.md`
+2. `prepared_source_manifest.json`
+3. `source_XX.json` or `source_XX.txt` only for the specific sources you are using
+4. `prepared_source_bundle.json` only if the compact manifest is missing or inconsistent
 
 ### Strong-model or manual workflow: search → fetch → extract
 
@@ -110,14 +117,17 @@ bundle = sonar_collect_sources_for_topic(topic="prompt engineering", max_results
 
 ### Canonical persisted artifacts
 ```
+prepared_sources_bundle.md
+prepared_source_manifest.json
 prepared_source_bundle.json
 source_01.txt
 source_02.txt
 ...
 ```
 
-High-level preparation now writes `prepared_source_bundle.json` plus optional
-`source_XX.txt` sidecars by default under the returned `bundle_path`.
+High-level preparation now writes a compact summary/manifest handoff as well as
+the canonical full bundle and optional sidecars. For local-model workflows,
+prefer the summary and compact manifest over the full bundle blob.
 
 ### Search for a topic
 ```
@@ -148,10 +158,10 @@ sonar_fetch(url="https://docs.python.org/3/library/asyncio.html")
 
 ## Configuration
 
-Sonar is installed in the runtime/app layer under `/opt/sonar/bin`
-(`/opt/sonar/bin/sonar-mcp`, `/opt/sonar/bin/sonar-api`,
-`/opt/sonar/bin/sonar-smoke`). Those binaries are also exported on PATH, but
-Nyx prefers absolute paths in config.
+Sonar is part of the Nix base layer and is installed under `/nix-env/bin`
+(`/nix-env/bin/sonar-mcp`, `/nix-env/bin/sonar-api`,
+`/nix-env/bin/sonar-smoke`, `/nix-env/bin/sonar-python`). Those binaries are
+also exported on PATH, but Nyx prefers absolute paths in config.
 
 The active config is selected by the `SONAR_CONFIG` env var:
 
@@ -174,7 +184,7 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 {
   "mcpServers": {
     "sonar": {
-      "command": "/opt/sonar/bin/sonar-mcp",
+      "command": "/nix-env/bin/sonar-mcp",
       "env": { "SONAR_MCP_TRANSPORT": "stdio" },
       "trust": true
     }
@@ -192,13 +202,17 @@ entry does not need to re-specify it.
 - Prefer the returned `bundle` object over compatibility `sources` fields when both exist
 - High-level preparation already persists durable artifacts by default; inspect
   those files before compressing results into notes or summaries
-- Prefer `bundle_path` plus `prepared_source_bundle.json` and `source_XX.txt`
-  sidecars over relying on long tool results in the transcript
+- Prefer `bundle_path` plus `prepared_sources_bundle.md`,
+  `prepared_source_manifest.json`, and then selective `source_XX.*` sidecars
+  over relying on long tool results in the transcript
+- Do not read the full `prepared_source_bundle.json` first on weaker runtimes;
+  it is authoritative, but it is often too large to be the initial handoff
 - If you need multi-step evidence gathering, stage it:
   1. search or prepare
-  2. inspect the persisted bundle
-  3. inspect the per-source sidecars
-  4. only then fetch/extract more
+  2. inspect the summary artifact
+  3. inspect the compact manifest
+  4. inspect only the per-source sidecars you need
+  5. only then fetch/extract more
 - Prefer one high-value Sonar call over long search/fetch/extract loops
 - Return or request structured JSON whenever possible
 

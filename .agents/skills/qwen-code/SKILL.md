@@ -52,14 +52,16 @@ Always use `--output-format text` for readable results or `--output-format json`
 Good staged pattern:
 
 1. collect or confirm sources
-2. inspect the auto-persisted prepared bundle
-3. inspect any per-source sidecars you need
-4. index or search
-5. synthesize the final answer
+2. read the summary artifact first
+3. read the compact manifest second
+4. inspect only any per-source sidecars you need
+5. index or search
+6. synthesize the final answer
 
 Bad pattern:
 
 - one prompt that asks Qwen to search the web, fetch pages, extract text, choose papers, write notes, index them, search them, and explain the result
+- one prompt that starts by loading the full `prepared_source_bundle.json` blob into context
 
 Each `qwen -p` starts with a fresh context, so staged workflows are usually more reliable than monolithic ones.
 
@@ -126,9 +128,13 @@ qwen -p 'use sonar_prepare_paper_set for "prompt engineering scientific papers" 
 
 High-level Sonar preparation now auto-persists durable artifacts by default, so
 the usual workflow is to read the returned `bundle` object and then inspect the
-persisted bundle under `bundle.bundle_path`, including
-`prepared_source_bundle.json` and any `source_XX.txt` files, before writing
-notes.
+persisted bundle under `bundle.bundle_path`. On weaker runtimes, read in this
+order:
+
+1. `prepared_sources_bundle.md`
+2. `prepared_source_manifest.json`
+3. only the `source_XX.json` or `source_XX.txt` files you actually need
+4. `prepared_source_bundle.json` only if the compact artifacts are missing or inconsistent
 
 ## Recommended Nyx pattern
 
@@ -137,18 +143,22 @@ For Sonar plus Synapse tasks inside Nyx, prefer this sequence:
 1. Sonar high-level collection:
    `sonar_prepare_paper_set` or `sonar_collect_sources_for_topic`
 2. Inspect the returned `bundle` object
-3. Inspect `bundle.bundle_path` plus `prepared_source_bundle.json` and any per-paper sidecars
-4. Write notes that include both metadata lines and a Markdown `# Title` heading
-5. Synapse workspace pass:
+3. Read the run-scoped `artifacts/prepared_sources_bundle.md`
+4. Read the run-scoped `artifacts/prepared_source_manifest.json`
+5. Inspect only the per-paper sidecars you need
+6. Write notes that include both metadata lines and a Markdown `# Title` heading
+7. Synapse workspace pass:
    `synapse_health_for_workspace`
    `synapse_index_for_workspace`
    `synapse_search_for_workspace`
-6. Final synthesis in a separate Qwen call if needed
+8. Final synthesis in a separate Qwen call if needed
 
 This matches the flow that tested well in practice.
 
 Recommended persisted artifact names:
 
+- `artifacts/prepared_sources_bundle.md`
+- `artifacts/prepared_source_manifest.json`
 - `<bundle_path>/prepared_source_bundle.json`
 - `<bundle_path>/source_01.txt`, `<bundle_path>/source_02.txt`, ...
 - `ingestion_vault/paper-01.md`, `paper-02.md`, ...
