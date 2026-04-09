@@ -38,6 +38,7 @@ data/workspace/e2e/<test_id>/
     prompt.txt
     openclaw-tui-command.sh
     preflight.json
+    prepared_source_manifest.json
     prepared_source_bundle.json
     prepared_sources_bundle.md
     source_collection.log
@@ -74,6 +75,7 @@ This does all of the following by default:
 - creates the isolated run layout
 - optionally validates the stack with preflight
 - runs deterministic Sonar paper collection into `artifacts/prepared_source_bundle.json`
+- writes a compact handoff manifest to `artifacts/prepared_source_manifest.json`
 - writes the canonical TUI prompt and exact `openclaw tui` launch script
 
 Prepare a run and rebuild Nyx first:
@@ -121,6 +123,7 @@ It:
 - persists exactly 5 selected sources under `artifacts/sources/`
 - records the fixed input set in `artifacts/prepared_source_bundle.json`
 - writes a readable bundle summary in `artifacts/prepared_sources_bundle.md`
+- writes a compact handoff manifest in `artifacts/prepared_source_manifest.json`
 
 This phase is model-agnostic. No LLM is involved in Sonar search, fetch, or extraction.
 
@@ -134,18 +137,20 @@ The current collector is intentionally conservative:
 
 The TUI prompt no longer asks the model to search the web. It instead tells the agent to:
 
-1. read `artifacts/prepared_source_bundle.json`
-2. read the prepared `source_0N.json` or `source_0N.txt` files
-3. call `synapse_health_for_workspace(workspace="current")`
-4. write exactly 5 markdown notes into the dedicated `ingestion_vault`
-5. call `synapse_index_for_workspace(workspace="current")`
-6. call `synapse_search_for_workspace(workspace="current", mode="hybrid")`
-7. optionally call `synapse_discover`
-8. produce 3-5 grounded cross-paper insights
+1. read `artifacts/prepared_sources_bundle.md`
+2. read `artifacts/prepared_source_manifest.json`
+3. read only the prepared `source_0N.json` or `source_0N.txt` files needed for specific papers
+4. avoid reading `artifacts/prepared_source_bundle.json` unless the compact artifacts are missing or inconsistent
+5. call `synapse_health_for_workspace(workspace="current")`
+6. write exactly 5 markdown notes into the dedicated `ingestion_vault`
+7. call `synapse_index_for_workspace(workspace="current")`
+8. call `synapse_search_for_workspace(workspace="current", mode="hybrid")`
+9. optionally call `synapse_discover`
+10. produce 3-5 grounded cross-paper insights
 
 The narrowed prompt now prefers the pathless workspace facade from Synapse `a3b4dc8`, because local-model runtimes were repeatedly corrupting raw filesystem-path fields before the request ever reached the MCP server.
 
-This reduction is what makes the e2e more model-tolerant. The model only has to do note synthesis, indexing, retrieval, and final explanation.
+This reduction is what makes the e2e more model-tolerant. The important detail is the compact handoff: the model sees the summary first, the compact manifest second, and only selective sidecars after that. That keeps the local-model context footprint small enough to reach note writing and Synapse instead of stalling on the full bundle blob.
 
 ## What The Verifier Checks
 
@@ -158,6 +163,7 @@ This reduction is what makes the e2e more model-tolerant. The model only has to 
   - `/nix-env/bin/sonar-mcp`
   - `/nix-env/bin/synapse-mcp`
 - the prepared bundle exists and names exactly 5 selected sources
+- the compact manifest exists and names exactly 5 selected sources
 - each prepared source JSON and text artifact exists
 - exactly 5 notes exist under the dedicated ingestion vault
 - filenames match `paper-01.md` through `paper-05.md`
@@ -200,5 +206,5 @@ A valid rebuilt image should expose:
 ## Practical Notes
 
 - If you want to debug only the TUI/Synapse phase, you can reuse an existing run and skip source collection.
-- If deterministic source collection fails, inspect `artifacts/source_collection.log` and `artifacts/prepared_source_bundle.json` first.
+- If deterministic source collection fails, inspect `artifacts/source_collection.log`, `artifacts/prepared_sources_bundle.md`, and `artifacts/prepared_source_manifest.json` first.
 - If the model still misbehaves during the TUI phase, the prepared Sonar bundle keeps the failure surface small and reproducible.

@@ -58,6 +58,10 @@ cp container/openclaw.json5.example secrets/openclaw.json5
 $EDITOR secrets/openclaw.json5
 ```
 
+For weaker local models, keep the example `tools.loopDetection` block enabled.
+Nyx uses that to stop repeated no-progress tool loops, especially around schema
+validation failures for MCP/tool calls.
+
 Minimum required for Telegram:
 
 ```json5
