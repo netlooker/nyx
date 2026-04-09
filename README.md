@@ -6,7 +6,7 @@ Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — a
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, Synapse (semantic retrieval engine, pinned by git rev + sha256 in `flake.nix`), build tools, and utilities are all pinned by `flake.lock`. On top of that pinned base, OpenClaw, Qwen Code, and now Sonar are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside the Nyx image boundary itself: Sonar talks to the private SearXNG sidecar over the internal compose network.
+The base toolchain is compiled by Nix — Node.js, Python, git, Synapse, Sonar, build tools, and utilities are all pinned in `flake.nix` / `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside the Nyx image boundary itself: Sonar talks to the private SearXNG sidecar over the internal compose network.
 
 ### Dual-Agent Architecture
 
@@ -46,7 +46,7 @@ $EDITOR secrets/qwen-settings.json
 
 `openclaw.json5` is the primary config — wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp).
 
-`qwen-settings.json` configures the Qwen Code sub-agent — point it at the same inference server and adjust temperature/max_tokens to taste. Prefer absolute MCP command paths such as `/opt/sonar/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` so Qwen does not depend on shell PATH quirks. Qwen is enabled by default; remove the file to disable it.
+`qwen-settings.json` configures the Qwen Code sub-agent — point it at the same inference server and adjust temperature/max_tokens to taste. Prefer absolute MCP command paths such as `/nix-env/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` so Qwen does not depend on shell PATH quirks. Qwen is enabled by default; remove the file to disable it.
 
 `sonar.toml` is optional. The baked image default already targets the internal `http://searxng:8080` sidecar and stores its SQLite state under `/data`. Add `secrets/sonar.toml` only when you need to override those runtime defaults.
 
@@ -112,7 +112,7 @@ flake.lock             — Cryptographic lockfile — the single source of truth
 .github/workflows/
   check.yml                — CI: validates compose config, shell syntax, flake outputs, image labels
 container/
-  Dockerfile               — Multi-stage build: Nix base → Debian-slim + OpenClaw/Qwen metadata
+  Dockerfile               — Multi-stage build: Nix base (incl. Synapse/Sonar) → Debian-slim + OpenClaw/Qwen metadata
   docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
   entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
   gemma4-upstream.jinja    — Upstream Gemma 4 llama.cpp chat template used for reliable tool calling
@@ -155,7 +155,7 @@ just e2e-sonar-synapse-prepare # prepare the deterministic-Sonar -> OpenClaw TUI
 just e2e-sonar-synapse-prepare-rebuild # rebuild Nyx and prepare the same e2e run
 just e2e-sonar-synapse-collect-sources <test_id> # rerun only the deterministic Sonar source-collection phase
 just e2e-sonar-synapse-verify <test_id> # verify source artifacts, notes, transcript, and Synapse DB for one run
-just update-sonar # bump the container-layer Sonar commit pin to the latest main
+just update-sonar # bump the flake-pinned Sonar commit to the latest main
 ```
 
 Agent dashboard at `http://localhost:18789` (enable `gateway.bind: 'lan'` + password via `secrets/.env`).

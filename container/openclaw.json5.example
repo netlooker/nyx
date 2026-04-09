@@ -42,7 +42,7 @@
   // mcp: {
   //   servers: {
   //     sonar: {
-  //       command: '/opt/sonar/bin/sonar-mcp',
+  //       command: '/nix-env/bin/sonar-mcp',
   //       env: {
   //         SONAR_MCP_TRANSPORT: 'stdio',
   //       },

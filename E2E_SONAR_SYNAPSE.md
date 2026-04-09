@@ -155,7 +155,7 @@ This reduction is what makes the e2e more model-tolerant. The model only has to 
 - rebuilt container exposes:
   - `/app/skills/sonar/SKILL.md`
   - `/app/skills/synapse/SKILL.md`
-  - `/opt/sonar/bin/sonar-mcp`
+  - `/nix-env/bin/sonar-mcp`
   - `/nix-env/bin/synapse-mcp`
 - the prepared bundle exists and names exactly 5 selected sources
 - each prepared source JSON and text artifact exists
@@ -194,7 +194,7 @@ The verifier does not require `sonar_*` tool calls in the transcript anymore, be
 A valid rebuilt image should expose:
 
 - the `sonar` and `synapse` skills under `/app/skills`
-- the `/opt/sonar/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` binaries
+- the `/nix-env/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` binaries
 - active MCP registrations for both `sonar` and `synapse`
 
 ## Practical Notes

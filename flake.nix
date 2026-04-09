@@ -22,21 +22,21 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
-          # Synapse — semantic retrieval / discovery engine, pinned by git rev.
+          # Synapse — provenance-aware research corpus engine, pinned by git rev.
           # Bumped via `just update-synapse` which rewrites rev + hash in place.
           # Upstream `pydantic-ai` isn't packaged in nixpkgs; we rewrite the
           # dependency to `pydantic-ai-slim` which is what an MCP server needs.
           # `sqlite-vec` version constraint is relaxed to match nixpkgs' pin.
           synapse = pkgs.python3Packages.buildPythonApplication {
             pname = "netlooker-synapse";
-            version = "0-unstable-2026-04-07";
+            version = "0.1.0";
             pyproject = true;
 
             src = pkgs.fetchFromGitHub {
               owner = "netlooker";
               repo = "synapse";
-              rev = "a3b4dc869c2b2c21e5bd671b755c5191c8bcc09c";
-              hash = "sha256-k2FpFUnR4u/u5wSh7ePEq8Lwp5QGG+tgW8n0HiohKUI=";
+              rev = "cb04729e697d9d9961380cf2f712bdc2b1bfc9ee";
+              hash = "sha256-Mi8VLFxPDROwL4+UW1cDxV/th+AXYU0MyneO8bULugE=";
             };
 
             postPatch = ''
@@ -64,6 +64,67 @@
             ];
 
             pythonImportsCheck = [ "synapse" ];
+          };
+
+          # Sonar — deterministic search/fetch/extract engine, now stable enough
+          # to live in the same pinned base layer as Synapse.
+          sonar = pkgs.python3Packages.buildPythonApplication {
+            pname = "netlooker-sonar";
+            version = "0.1.0";
+            pyproject = true;
+
+            src = pkgs.fetchFromGitHub {
+              owner = "netlooker";
+              repo = "sonar";
+              rev = "311bd778d9c9121923638bd3d1deb9b5e9cf28e4";
+              hash = "sha256-g+mtn4dlqn7wrRsLv/3KI6O6CoKhU6+Kb+L4ZSFRhJI=";
+            };
+
+            build-system = with pkgs.python3Packages; [
+              setuptools
+              wheel
+            ];
+
+            nativeBuildInputs = with pkgs.python3Packages; [
+              pythonRelaxDepsHook
+            ];
+
+            # Sonar 0.1.0 still declares older upper bounds for pypdf and
+            # trafilatura, but nixpkgs currently ships newer compatible
+            # versions. Relax only those stale bounds instead of disabling the
+            # runtime dependency check entirely.
+            pythonRelaxDeps = [
+              "pypdf"
+              "trafilatura"
+            ];
+
+            dependencies = with pkgs.python3Packages; [
+              fastapi
+              httpx
+              mcp
+              pydantic
+              pypdf
+              trafilatura
+              uvicorn
+            ];
+
+            pythonImportsCheck = [ "sonar" ];
+          };
+
+          # Stable Python entrypoint for Nyx helper scripts that import Sonar
+          # modules directly. Use a dedicated Python environment so Sonar's
+          # propagated dependencies (httpx, pypdf, trafilatura, etc.) are
+          # available to helper scripts, not just the top-level package.
+          sonarPythonEnv = pkgs.python3.withPackages (_: [
+            (pkgs.python3Packages.toPythonModule sonar)
+          ]);
+
+          sonarPython = pkgs.writeShellApplication {
+            name = "sonar-python";
+            runtimeInputs = [ sonarPythonEnv ];
+            text = ''
+              exec ${sonarPythonEnv}/bin/python "$@"
+            '';
           };
 
           # Every tool that must exist inside the container.
@@ -139,8 +200,10 @@
           ] ++ lib.optionals pkgs.stdenv.isLinux [
             pkgs.calibre       # ebook conversion (Linux only)
           ] ++ [
-            # --- Netlooker apps (pinned by rev+hash, bumped via just update-synapse) ---
-            synapse            # semantic retrieval engine
+            # --- Netlooker apps (pinned by rev+hash, bumped via just update-*) ---
+            synapse            # provenance-aware corpus engine
+            sonar              # deterministic web retrieval engine
+            sonarPython        # stable Python wrapper for Sonar imports
           ];
 
           # Merge all paths into one derivation so dockerTools sees a flat tree
@@ -171,9 +234,9 @@
           # Docker copies /nix/store + this directory into the final image.
           base-content = baseContent;
 
-          # Exposed so `just update-synapse` can nix-build it in isolation
-          # and the justfile can nix-eval its version string for the image label.
-          inherit synapse;
+          # Exposed so the justfile can nix-eval revs for image metadata and
+          # bump scripts can prefetch/update each app independently.
+          inherit synapse sonar;
 
           # Optional SBOM artifact — kept out of the default Docker build path
           # because bombon pulls a large Rust dependency graph.

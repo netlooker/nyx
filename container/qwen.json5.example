@@ -49,9 +49,8 @@
   },
 
   // MCP servers — expose external tools to the agent.
-  // `synapse` is pinned in the Nix base layer.
-  // `sonar` is installed in the runtime/app layer and points at the private
-  // SearXNG sidecar on the internal compose network.
+  // `synapse` and `sonar` are both pinned in the Nix base layer.
+  // Sonar still points at the private SearXNG sidecar on the internal compose network.
   // Drop either entry from this list to disable it.
   "mcpServers": {
     "synapse": {
@@ -62,7 +61,7 @@
       "trust": true
     },
     "sonar": {
-      "command": "/opt/sonar/bin/sonar-mcp",
+      "command": "/nix-env/bin/sonar-mcp",
       "env": {
         "SONAR_MCP_TRANSPORT": "stdio"
       },
