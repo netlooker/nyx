@@ -650,14 +650,14 @@ Required tool flow:
 6. Write exactly 5 markdown notes into {layout.container_vault_root} with these exact filenames:
 {filenames}
 7. Run synapse_index_for_workspace with workspace="current".
-8. Run synapse_search_for_workspace with workspace="current" and mode="hybrid".
+8. Run synapse_search_for_workspace with workspace="current" and mode="research".
 9. Optional: synapse_discover with db_path={layout.container_db_path} and threshold between 0.20 and 0.40.
 10. Produce a final grounded answer only from the 5 ingested notes.
 
 Exact tool argument examples:
 - synapse_health_for_workspace(workspace="current")
 - synapse_index_for_workspace(workspace="current")
-- synapse_search_for_workspace(query="cross-paper insights about AI and computer science", workspace="current", mode="hybrid")
+- synapse_search_for_workspace(query="cross-paper insights about AI and computer science", workspace="current", mode="research")
 
 Prepared-source rule:
 - Trust the prepared Sonar bundle as the fixed input set for this phase.
@@ -930,10 +930,10 @@ def inspect_transcript(
     synapse_search_args = [event["arguments"] for event in by_name.get("synapse__synapse_search_for_workspace", [])]
     checks.append(
         check_result(
-            "synapse_search_uses_current_workspace_hybrid_mode",
+            "synapse_search_uses_current_workspace_research_mode",
             any(
                 args.get("workspace") == "current"
-                and args.get("mode") == "hybrid"
+                and args.get("mode") == "research"
                 and bool(str(args.get("query", "")).strip())
                 for args in synapse_search_args
             ),

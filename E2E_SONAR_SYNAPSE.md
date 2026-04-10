@@ -144,7 +144,7 @@ The TUI prompt no longer asks the model to search the web. It instead tells the 
 5. call `synapse_health_for_workspace(workspace="current")`
 6. write exactly 5 markdown notes into the dedicated `ingestion_vault`
 7. call `synapse_index_for_workspace(workspace="current")`
-8. call `synapse_search_for_workspace(workspace="current", mode="hybrid")`
+8. call `synapse_search_for_workspace(workspace="current", mode="research")`
 9. optionally call `synapse_discover`
 10. produce 3-5 grounded cross-paper insights
 
@@ -185,7 +185,7 @@ This reduction is what makes the e2e more model-tolerant. The important detail i
   - `synapse__synapse_index_for_workspace`
   - `synapse__synapse_search_for_workspace`
 - the workspace-handle Synapse calls all use `workspace="current"`
-- `synapse_search_for_workspace` uses `mode="hybrid"` with a real top-level `query`
+- `synapse_search_for_workspace` uses `mode="research"` with a real top-level `query`
 - the final answer contains:
   - exactly 5 selected papers
   - 3-5 cross-paper insights
