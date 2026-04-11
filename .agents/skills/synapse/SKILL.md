@@ -1,17 +1,17 @@
 ---
 name: synapse
-description: Semantic search, discovery, and reasoning over markdown vaults via Synapse MCP tools.
+description: Semantic search, discovery, reasoning, and compiled-knowledge ingest/review over markdown vaults via Synapse MCP tools.
 user-invocable: true
 disable-model-invocation: false
 ---
 
 # Synapse MCP
 
-Synapse is a semantic retrieval and discovery engine for markdown knowledge bases. It indexes markdown folders into vector embeddings and exposes search, discovery, validation, and reasoning via MCP tools.
+Synapse is a semantic retrieval, discovery, and compiled-knowledge engine for markdown knowledge bases. It indexes markdown folders into vector embeddings, exposes search/discovery/validation/reasoning over MCP, and — when the knowledge layer is enabled — ingests prepared research bundles into reviewable `source_summary` proposals that operators apply into a managed subtree of the vault.
 
 ## Available tools
 
-### Deterministic (no LLM required)
+### Deterministic retrieval (no LLM required)
 
 | Tool | Purpose | Key params |
 |------|---------|------------|
@@ -24,14 +24,43 @@ Synapse is a semantic retrieval and discovery engine for markdown knowledge base
 | `synapse_discover` | Find unlinked but semantically related documents | `threshold`, `max` |
 | `synapse_validate` | Report broken `[[wikilinks]]` in indexed vault | — |
 
+### Local-model "simple" facade
+
+These are strict-shape variants for weaker runtimes: top-level plain-string args only, no nested objects, mode defaults to `research`.
+
+| Tool | Purpose | Required params |
+|------|---------|-----------------|
+| `synapse_health_simple` | Minimal health probe | `vault_root`, `db_path` |
+| `synapse_index_simple` | Minimal index call | `vault_root`, `db_path` |
+| `synapse_search_simple` | Minimal search call (optional `mode`) | `query`, `db_path` |
+
 ### Reasoning (requires configured model via Cipher)
 
 | Tool | Purpose | Key params |
 |------|---------|------------|
+| `synapse_cipher_health` | Report Cipher runtime requirements and readiness | optional overrides only |
 | `synapse_cipher_audit` | Audit vault integrity (broken links, stale docs) | `mode` |
 | `synapse_cipher_explain` | Explain why two documents are related | `doc_a`, `doc_b` |
 | `synapse_cipher_chunking_strategy` | Recommend chunking parameters for a model | — |
 | `synapse_cipher_review_stubs` | Review proposed stub notes before creation | — |
+
+### Compiled knowledge layer (opt-in, Synapse v0.3.x)
+
+Feature-gated: every tool below raises a structured bad-request error unless `[knowledge].enabled = true` (or `SYNAPSE_KNOWLEDGE_ENABLED=true`). In Nyx this is enabled by default in both `container/synapse.toml.example` and the active `secrets/synapse.toml` override — nothing to toggle at the call site.
+
+| Tool | Purpose | Required params |
+|------|---------|-----------------|
+| `synapse_ingest_bundle` | Ingest a prepared research source bundle JSON (typically from `sonar_collect_sources_for_topic` / `sonar_prepare_paper_set`) | `bundle_path` |
+| `synapse_knowledge_overview` | Managed-root status, counts, recent proposals | — |
+| `synapse_knowledge_compile_bundle` | Turn an ingested bundle into pending `source_summary` proposals | `bundle_id` |
+| `synapse_knowledge_list_proposals` | Filter the review queue by `status` (pending / applied / rejected) | — |
+| `synapse_knowledge_get_proposal` | Full proposal detail: frontmatter, body, refs, reviewer action | `proposal_id` |
+| `synapse_knowledge_apply_proposal` | Write the managed note, update `index.md` / `log.md`, reindex | `proposal_id` |
+| `synapse_knowledge_reject_proposal` | Mark a proposal rejected, append reason to `log.md` | `proposal_id` (optional `reason`) |
+| `synapse_knowledge_bundle_detail` | Bundle metadata + per-source proposal/applied counts | `bundle_id` |
+| `synapse_knowledge_source_detail` | Normalized source metadata, stored segments, related proposals | `bundle_id`, `source_id` |
+
+All nine tools wrap the same `service_api` entry points the admin console drives, so MCP-driven and human-driven reviews share a single code path.
 
 ## Workflow: always retrieval first
 
@@ -56,6 +85,22 @@ Use `synapse_health`, `synapse_index`, and `synapse_search` with explicit
 5. **Reason** only after deterministic evidence is gathered: `synapse_cipher_*`
 
 Do not call Cipher tools before gathering evidence via search or discovery.
+
+## Workflow: compiled knowledge review
+
+When the goal is to build a curated, reviewable corpus from upstream Sonar artifacts, use the knowledge layer instead of writing raw notes by hand:
+
+1. **Prepare upstream evidence** — run `sonar_collect_sources_for_topic` (or `sonar_prepare_paper_set`) and note the persisted `bundle_path` (e.g. `/data/workspace/vault/_sources/<run>/prepared_source_bundle.json`).
+2. **Ingest** — `synapse_ingest_bundle(bundle_path=...)`. Returns the `bundle_id` used by every subsequent call.
+3. **Compile** — `synapse_knowledge_compile_bundle(bundle_id=...)`. Produces `source_summary` proposals in `pending` state.
+4. **Review** — `synapse_knowledge_list_proposals(status="pending")`, then `synapse_knowledge_get_proposal(proposal_id=...)` for each candidate. Use `synapse_knowledge_bundle_detail` / `synapse_knowledge_source_detail` to cross-check provenance before acting.
+5. **Apply or reject** — `synapse_knowledge_apply_proposal(proposal_id=...)` writes the managed note under `<vault_root>/<managed_root>/`, updates `index.md` + `log.md`, and reindexes. `synapse_knowledge_reject_proposal(proposal_id=..., reason=...)` records the decision without touching the managed note.
+6. **Status check anytime** — `synapse_knowledge_overview` for top-level counts and recent activity.
+
+Guardrails:
+- Never hand-edit files under the managed root (`_knowledge/` by default). The layer expects every write to go through apply/reject so `index.md` and `log.md` stay consistent and reindex runs after each mutation.
+- `auto_compile_on_ingest = false` is the Nyx default — ingest and compile are explicit, separate steps. This is deliberate so operators can stage bundles before paying the compile cost.
+- Rejected proposals stay inspectable via `status="rejected"` — they are an audit trail, not a garbage bin.
 
 ## Search modes
 
@@ -106,13 +151,32 @@ synapse_cipher_audit(mode="audit")
 synapse_cipher_explain(doc_a="notes/topic-a.md", doc_b="notes/topic-b.md")
 ```
 
+### Ingest a Sonar bundle and review its proposals
+```
+synapse_ingest_bundle(bundle_path="/data/workspace/vault/_sources/<run>/prepared_source_bundle.json")
+# → returns bundle_id
+synapse_knowledge_compile_bundle(bundle_id="<id>")
+# → creates pending source_summary proposals
+synapse_knowledge_list_proposals(status="pending")
+synapse_knowledge_get_proposal(proposal_id="<pid>")
+synapse_knowledge_apply_proposal(proposal_id="<pid>")
+```
+
+### Status snapshot for the compiled knowledge layer
+```
+synapse_knowledge_overview()
+```
+
 ## Configuration
 
-Synapse is part of the Nix base layer (`flake.nix` pins it by git rev + sha256)
-and is installed under `/nix-env/bin` (`/nix-env/bin/synapse-mcp`,
-`/nix-env/bin/synapse-index`, `/nix-env/bin/synapse-search`, etc.). Those
-binaries are also exported on PATH, but Nyx prefers absolute paths in config.
-Bumping to a newer commit: `just update-synapse && just build`.
+Synapse is part of the Nix base layer (`flake.nix` pins it to a tag commit by
+rev + sha256 — currently v0.3.1) and is installed under `/nix-env/bin`
+(`/nix-env/bin/synapse-mcp`, `/nix-env/bin/synapse-index`,
+`/nix-env/bin/synapse-search`, `/nix-env/bin/synapse-ingest-bundle`, etc.).
+Those binaries are also exported on PATH, but Nyx prefers absolute paths in
+config. Bumping: update the `rev` + `hash` in `flake.nix` to the newest tag
+commit, then `just rebuild`. (`just update-synapse` tracks `main`, not tags —
+use it only when main is at the release you want.)
 
 The active config is selected by the `SYNAPSE_CONFIG` env var:
 
@@ -126,6 +190,10 @@ Key config sections:
 - `[database]`: SQLite path
 - `[providers.embeddings.*]`: embedding model endpoints
 - `[cipher]`: reasoning model timeouts
+- `[knowledge]`: compiled knowledge layer toggle (`enabled`, `managed_root`,
+  `default_status`, `generated_by`, `auto_compile_on_ingest`) — Nyx ships with
+  `enabled = true` and `managed_root = "_knowledge"`. Override at runtime via
+  `SYNAPSE_KNOWLEDGE_ENABLED=true|false`.
 
 MCP server registration (already wired in `container/qwen.json5.example`):
 ```json

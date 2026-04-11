@@ -29,14 +29,14 @@
           # `sqlite-vec` version constraint is relaxed to match nixpkgs' pin.
           synapse = pkgs.python3Packages.buildPythonApplication {
             pname = "netlooker-synapse";
-            version = "0.1.0";
+            version = "0.3.1";
             pyproject = true;
 
             src = pkgs.fetchFromGitHub {
               owner = "netlooker";
               repo = "synapse";
-              rev = "cb04729e697d9d9961380cf2f712bdc2b1bfc9ee";
-              hash = "sha256-Mi8VLFxPDROwL4+UW1cDxV/th+AXYU0MyneO8bULugE=";
+              rev = "ed1cb6df44866a4256e989e51cb8851af3a33044"; # v0.3.1
+              hash = "sha256-hZmj1A1ZU6eRvLwYKzIMfXdjPDbXWT1/uQequ9Wy4DM=";
             };
 
             postPatch = ''
@@ -76,7 +76,7 @@
             src = pkgs.fetchFromGitHub {
               owner = "netlooker";
               repo = "sonar";
-              rev = "311bd778d9c9121923638bd3d1deb9b5e9cf28e4";
+              rev = "311bd778d9c9121923638bd3d1deb9b5e9cf28e4"; # v0.1.0
               hash = "sha256-g+mtn4dlqn7wrRsLv/3KI6O6CoKhU6+Kb+L4ZSFRhJI=";
             };
 
@@ -197,8 +197,6 @@
             # --- Content tools ---
             hugo               # static site generator
             pandoc             # document conversion
-          ] ++ lib.optionals pkgs.stdenv.isLinux [
-            pkgs.calibre       # ebook conversion (Linux only)
           ] ++ [
             # --- Netlooker apps (pinned by rev+hash, bumped via just update-*) ---
             synapse            # provenance-aware corpus engine
