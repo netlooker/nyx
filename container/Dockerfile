@@ -26,14 +26,23 @@ RUN echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
 WORKDIR /build
 COPY flake.nix flake.lock ./
 
-# Build the selected Linux system's pinned base content.
-RUN nix build ".#packages.${NYX_NIX_SYSTEM}.base-content" --out-link /nix-content
-
-# Extract only the runtime closure — not the entire Nix store.
-# nix-store --query --requisites resolves the full dependency graph of
-# base-content. We hard-link matching paths into /nix-closure so Stage 2
-# copies only what's needed (~1-2 GB instead of ~6 GB).
-RUN mkdir -p /nix-closure/nix/store && \
+# Build the pinned base content and extract the runtime closure.
+#
+# The --mount=type=cache keeps a local Nix binary cache between Docker
+# builds.  On the first build the cache is cold and everything downloads
+# from cache.nixos.org (~20 min).  Subsequent builds find most paths in
+# the local file cache and only fetch the delta (~1-3 min).
+#
+# After the build, `nix copy` persists the closure into the cache so the
+# next build can reuse it.  The cache mount is build-time only — nothing
+# from it ends up in the final image.
+RUN --mount=type=cache,id=nyx-nix-cache,target=/nix-cache,sharing=locked \
+    mkdir -p /nix-cache && \
+    echo "extra-substituters = file:///nix-cache" >> /etc/nix/nix.conf && \
+    echo "extra-trusted-substituters = file:///nix-cache" >> /etc/nix/nix.conf && \
+    nix build ".#packages.${NYX_NIX_SYSTEM}.base-content" --out-link /nix-content && \
+    nix copy --to "file:///nix-cache" /nix-content && \
+    mkdir -p /nix-closure/nix/store && \
     nix-store --query --requisites /nix-content | \
     xargs -I{} cp -al {} /nix-closure/nix/store/
 

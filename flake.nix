@@ -56,14 +56,35 @@
             # entrypoint, never the bare CLI-only build.
             dependencies = with pkgs.python3Packages; [
               anyio
+              fastapi
               mcp
               numpy
               ollama
               pydantic-ai-slim
               sqlite-vec
+              uvicorn
             ];
 
             pythonImportsCheck = [ "synapse" ];
+          };
+
+          # Python environment for the Synapse admin console (synapse-api).
+          # synapse-api hardcodes host=127.0.0.1 which is unreachable through
+          # Docker port mapping, so we wrap uvicorn with 0.0.0.0 binding and
+          # env-var-configurable port via synapse-api-serve.
+          synapsePythonEnv = pkgs.python3.withPackages (_: [
+            (pkgs.python3Packages.toPythonModule synapse)
+          ]);
+
+          synapseApiServe = pkgs.writeShellApplication {
+            name = "synapse-api-serve";
+            runtimeInputs = [ synapsePythonEnv ];
+            text = ''
+              exec ${synapsePythonEnv}/bin/python -m uvicorn \
+                synapse.web_api:create_app --factory \
+                --host "''${SYNAPSE_API_HOST:-0.0.0.0}" \
+                --port "''${SYNAPSE_API_PORT:-8765}"
+            '';
           };
 
           # Sonar — deterministic search/fetch/extract engine, now stable enough
@@ -200,6 +221,7 @@
           ] ++ [
             # --- Netlooker apps (pinned by rev+hash, bumped via just update-*) ---
             synapse            # provenance-aware corpus engine
+            synapseApiServe    # admin console server (uvicorn wrapper)
             sonar              # deterministic web retrieval engine
             sonarPython        # stable Python wrapper for Sonar imports
           ];

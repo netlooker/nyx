@@ -49,6 +49,13 @@ else
   echo "[nyx] sonar config: ${SONAR_CONFIG:-/app/sonar.toml.default} (image default)"
 fi
 
+# Synapse admin console — the web UI for the compiled knowledge layer.
+# Disabled via SYNAPSE_API_ENABLED=false if the port or process is unwanted.
+if [ "${SYNAPSE_API_ENABLED:-true}" = "true" ]; then
+  echo "[nyx] synapse admin console: 0.0.0.0:${SYNAPSE_API_PORT:-8765}"
+  synapse-api-serve &
+fi
+
 # Ship agent skills from image into workspace.
 # Skills are baked into /app/skills at build time and symlinked into the
 # workspace's .agents/skills/ directory so agents pick them up automatically.

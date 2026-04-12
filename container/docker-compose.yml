@@ -15,6 +15,10 @@ services:
     restart: unless-stopped
     ports:
       - "18789:18789"
+      - "${SYNAPSE_API_PORT:-8765}:${SYNAPSE_API_PORT:-8765}"
+    environment:
+      SYNAPSE_API_ENABLED: "${SYNAPSE_API_ENABLED:-true}"
+      SYNAPSE_API_PORT: "${SYNAPSE_API_PORT:-8765}"
     volumes:
       # Config — edit on Mac, live-reloaded by openclaw (directory mount avoids EBUSY inode locks)
       - ../secrets:/config
