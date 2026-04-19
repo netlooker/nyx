@@ -218,6 +218,9 @@
             # --- Content tools ---
             hugo               # static site generator
             pandoc             # document conversion
+            ffmpeg-headless    # audio/video transcoding (no GUI deps)
+            imagemagick        # image conversion, resizing, color correction
+            exiftool           # read/write/strip image metadata (EXIF/IPTC/XMP)
           ] ++ [
             # --- Netlooker apps (pinned by rev+hash, bumped via just update-*) ---
             synapse            # provenance-aware corpus engine
