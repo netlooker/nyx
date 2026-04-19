@@ -68,6 +68,10 @@
   //       command: '/nix-env/bin/synapse-mcp',
   //       env: { SYNAPSE_MCP_TRANSPORT: 'stdio' },
   //     },
+  //     scrapling: {
+  //       command: '/usr/local/bin/scrapling',
+  //       args: ['mcp'],
+  //     },
   //     'my-server': {
   //       command: '/path/to/executable',
   //       args: ['-m', 'module.name'],

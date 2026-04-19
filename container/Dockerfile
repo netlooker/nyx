@@ -3,6 +3,7 @@
 ARG NYX_NIX_SYSTEM=aarch64-linux
 ARG OPENCLAW_VERSION=latest
 ARG QWEN_CODE_VERSION=latest
+ARG SCRAPLING_VERSION=latest
 # Synapse and Sonar are pinned in flake.nix by git rev + sha256. The *_VERSION
 # args here are metadata values (rev strings) forwarded by `just build` for the
 # image labels and build-info.json. They do not drive any install step.
@@ -68,6 +69,7 @@ FROM debian:bookworm-slim AS container
 ARG NYX_NIX_SYSTEM
 ARG OPENCLAW_VERSION
 ARG QWEN_CODE_VERSION
+ARG SCRAPLING_VERSION
 ARG SYNAPSE_VERSION
 ARG SONAR_VERSION
 ARG ENABLE_SBOM
@@ -83,6 +85,10 @@ COPY --from=sbom-builder /sbom-dir/app /app
 # Expose Nix tools on PATH and set SSL certs
 ENV PATH=/nix-env/bin:/usr/local/bin:/usr/bin:/bin
 ENV SSL_CERT_FILE=/nix-env/etc/ssl/certs/ca-bundle.crt
+# Pip-installed binary wheels with C extensions (e.g. scrapling's curl_cffi)
+# dlopen libstdc++.so.6 at runtime — point them at the Nix-provided libdir
+# instead of a non-existent system one.
+ENV LD_LIBRARY_PATH=/nix-env/lib
 ENV HOME=/root
 ENV CI=true
 
@@ -95,6 +101,7 @@ LABEL org.opencontainers.image.title="nyx" \
       io.github.netlooker.nyx.sbom.path="${SBOM_PATH}" \
       io.github.netlooker.nyx.openclaw.version="${OPENCLAW_VERSION}" \
       io.github.netlooker.nyx.qwen-code.version="${QWEN_CODE_VERSION}" \
+      io.github.netlooker.nyx.scrapling.version="${SCRAPLING_VERSION}" \
       io.github.netlooker.nyx.synapse.version="${SYNAPSE_VERSION}" \
       io.github.netlooker.nyx.sonar.version="${SONAR_VERSION}"
 
@@ -109,8 +116,25 @@ RUN ln -sf /nix-env/bin/bash /bin/sh && \
 RUN npm config set prefix /usr/local && \
     npm install -g "openclaw@${OPENCLAW_VERSION}" && \
     npm install -g "grammy" "@grammyjs/runner" "@grammyjs/transformer-throttler" && \
-    npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" && \
-    node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {resolved: process.env.SONAR_VERSION}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
+    npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}"
+
+# Scrapling — adaptive scraping + MCP server. Installed via `uv tool` into an
+# isolated venv (CLI symlinked to /usr/local/bin by UV_TOOL_BIN_DIR). The `all`
+# extra pulls fetchers (playwright, curl_cffi) + ai (mcp, markdownify) + shell.
+# Browser backends (Playwright chromium, Camoufox) are NOT baked —
+# entrypoint.sh runs `scrapling install` on first boot into /data/scrapling so
+# they persist across rebuilds instead of bloating the image by ~500MB.
+ENV UV_TOOL_DIR=/opt/uv/tools
+ENV UV_TOOL_BIN_DIR=/usr/local/bin
+RUN if [ "${SCRAPLING_VERSION}" = "latest" ]; then \
+      spec="scrapling[all]"; \
+    else \
+      spec="scrapling[all]==${SCRAPLING_VERSION}"; \
+    fi && \
+    uv tool install --python /nix-env/bin/python3 "$spec" && \
+    "${UV_TOOL_DIR}/scrapling/bin/python" -c "from importlib.metadata import version; print(version('scrapling'))" > /app/scrapling-version.txt
+
+RUN node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, scrapling: {requested: process.env.SCRAPLING_VERSION, resolved: fs.readFileSync('/app/scrapling-version.txt', 'utf8').trim()}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {resolved: process.env.SONAR_VERSION}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
 
 ENV PATH=/nix-env/bin:/usr/local/bin:/usr/bin:/bin
 
@@ -119,13 +143,18 @@ ENV PATH=/nix-env/bin:/usr/local/bin:/usr/bin:/bin
 # already on PATH via /nix-env/bin. We only need to provide a default config
 # so the MCP server starts without requiring the user to create one.
 COPY container/synapse.toml.example /app/synapse.toml.default
-ENV SYNAPSE_CONFIG=/app/synapse.toml.default
+# entrypoint.sh ensures /config/synapse.toml always exists (user override or
+# symlink to /app/synapse.toml.default). Using /config/ here means processes
+# spawned via `docker compose exec` (which skips entrypoint) still get a
+# consistent path — worst case the symlink doesn't exist yet and Synapse
+# falls back to built-in defaults, but the entrypoint fixes this on boot.
+ENV SYNAPSE_CONFIG=/config/synapse.toml
 
 # Sonar also ships in the Nix base layer. Like Synapse, Nyx bakes a safe
 # default config into the image so `sonar-mcp` works before the user adds a
 # local override under secrets/.
 COPY container/sonar.toml.example /app/sonar.toml.default
-ENV SONAR_CONFIG=/app/sonar.toml.default
+ENV SONAR_CONFIG=/config/sonar.toml
 
 # Config mounted from host (directory mount, not file — avoids EBUSY on rename)
 ENV OPENCLAW_CONFIG_PATH=/config/openclaw.json5
@@ -143,8 +172,9 @@ EXPOSE 18789
 # Workspace instructions — seeded into /data/workspace on first boot by entrypoint.sh
 COPY container/WORKSPACE.md /app/WORKSPACE.md
 
-# Agent skills — shipped with the image, symlinked into workspace by entrypoint.sh
+# Agent skills and sub-agents — shipped with the image, symlinked into workspace by entrypoint.sh
 COPY .agents/skills /app/skills
+COPY .agents/subagents /app/subagents
 
 # Entrypoint creates workspace structure, seeds docs, and symlinks tool configs.
 COPY container/entrypoint.sh /entrypoint.sh

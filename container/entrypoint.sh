@@ -29,25 +29,27 @@ fi
 # first boot so synapse_index has a target even before the user adds notes.
 mkdir -p /data/workspace/vault
 
-# If the user supplied a custom synapse.toml via secrets/, point SYNAPSE_CONFIG
-# at it. Otherwise the image default at /app/synapse.toml.default (set via
-# ENV in the Dockerfile) stays in effect.
+# Ensure /config has a concrete config for each tool — either user-supplied
+# (bind-mounted from secrets/) or a symlink to the image default. This means
+# MCP env vars can always point at /config/<tool>.toml and it will resolve
+# whether the user provides an override or not. Without this, `docker compose
+# exec` sessions that skip entrypoint.sh would inherit Dockerfile ENV defaults
+# pointing at image-baked configs with placeholder IPs.
 if [ -f /config/synapse.toml ]; then
-  export SYNAPSE_CONFIG=/config/synapse.toml
   echo "[nyx] synapse config: /config/synapse.toml (user override)"
 else
-  echo "[nyx] synapse config: ${SYNAPSE_CONFIG:-/app/synapse.toml.default} (image default)"
+  ln -sf /app/synapse.toml.default /config/synapse.toml
+  echo "[nyx] synapse config: /config/synapse.toml -> /app/synapse.toml.default (image default)"
 fi
+export SYNAPSE_CONFIG=/config/synapse.toml
 
-# If the user supplied a custom sonar.toml via secrets/, point SONAR_CONFIG at
-# it. Otherwise the image default at /app/sonar.toml.default (set via ENV in
-# the Dockerfile) stays in effect.
 if [ -f /config/sonar.toml ]; then
-  export SONAR_CONFIG=/config/sonar.toml
   echo "[nyx] sonar config: /config/sonar.toml (user override)"
 else
-  echo "[nyx] sonar config: ${SONAR_CONFIG:-/app/sonar.toml.default} (image default)"
+  ln -sf /app/sonar.toml.default /config/sonar.toml
+  echo "[nyx] sonar config: /config/sonar.toml -> /app/sonar.toml.default (image default)"
 fi
+export SONAR_CONFIG=/config/sonar.toml
 
 # Synapse admin console — the web UI for the compiled knowledge layer.
 # Disabled via SYNAPSE_API_ENABLED=false if the port or process is unwanted.
@@ -62,5 +64,31 @@ fi
 # The symlink points at the image copy — container rebuild delivers new skills.
 mkdir -p /data/workspace/.agents
 ln -sfn /app/skills /data/workspace/.agents/skills
+ln -sfn /app/subagents /data/workspace/.agents/subagents
+
+# Scrapling: browser backends (Playwright chromium, Camoufox) are downloaded
+# on first boot rather than baked into the image (~500MB). Symlink their
+# cache dirs into /data so they survive rebuilds. Install runs in the
+# background so container startup stays fast — failures leave no marker,
+# so the next boot will retry.
+mkdir -p /data/scrapling/ms-playwright /data/scrapling/camoufox /root/.cache
+ln -sfn /data/scrapling/ms-playwright /root/.cache/ms-playwright
+ln -sfn /data/scrapling/camoufox /root/.cache/camoufox
+if [ ! -f /data/scrapling/.installed ]; then
+  echo "[nyx] scrapling: downloading browser backends in background (first boot, ~500MB)…"
+  (scrapling install && touch /data/scrapling/.installed && \
+    echo "[nyx] scrapling: browser backends ready") &
+fi
+
+# Ship sub-agents into the qwen-code agents directory.
+# Qwen Code looks for agent definitions in ~/.qwen/agents/ (user-level) and
+# <project>/.qwen/agents/ (project-level). We use both: user-level for global
+# availability, project-level for workspace sessions.
+mkdir -p /root/.qwen/agents /data/workspace/.qwen/agents
+for agent in /app/subagents/*.md; do
+  [ -f "$agent" ] || continue
+  ln -sf "$agent" "/root/.qwen/agents/$(basename "$agent")"
+  ln -sf "$agent" "/data/workspace/.qwen/agents/$(basename "$agent")"
+done
 
 exec "$@"

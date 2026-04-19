@@ -56,15 +56,29 @@
     "synapse": {
       "command": "/nix-env/bin/synapse-mcp",
       "env": {
-        "SYNAPSE_MCP_TRANSPORT": "stdio"
+        "SYNAPSE_MCP_TRANSPORT": "stdio",
+        // Explicit config path — required because `docker compose exec` does
+        // not run entrypoint.sh, so the Dockerfile ENV default would be used
+        // instead of the user override under /config/.
+        "SYNAPSE_CONFIG": "/config/synapse.toml"
       },
       "trust": true
     },
     "sonar": {
       "command": "/nix-env/bin/sonar-mcp",
       "env": {
-        "SONAR_MCP_TRANSPORT": "stdio"
+        "SONAR_MCP_TRANSPORT": "stdio",
+        "SONAR_CONFIG": "/config/sonar.toml"
       },
+      "trust": true
+    },
+    // Scrapling — adaptive scraping with anti-bot bypass (Playwright + Camoufox).
+    // Installed via `uv tool` into /opt/uv/tools/scrapling, CLI at /usr/local/bin/scrapling.
+    // First container boot runs `scrapling install` to download browser backends
+    // into /data/scrapling (persists across rebuilds). Remove this entry to disable.
+    "scrapling": {
+      "command": "/usr/local/bin/scrapling",
+      "args": ["mcp"],
       "trust": true
     }
     // "my-server": {

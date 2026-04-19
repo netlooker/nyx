@@ -18,9 +18,10 @@ build:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
+    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
     synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
     sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
       docker compose -f container/docker-compose.yml build
 
 # Build the container with the optional bombon SBOM path enabled
@@ -28,9 +29,10 @@ build-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
+    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
     synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
     sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
       docker compose -f container/docker-compose.yml build
 
 # Start the container
@@ -50,9 +52,10 @@ rebuild:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
+    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
     synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
     sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
       docker compose -f container/docker-compose.yml build --no-cache
     docker compose -f container/docker-compose.yml up -d
 
@@ -61,9 +64,10 @@ rebuild-sbom:
     system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
     openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
     qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
+    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
     synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
     sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
+    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
       docker compose -f container/docker-compose.yml build --no-cache
     docker compose -f container/docker-compose.yml up -d
 
