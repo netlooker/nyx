@@ -134,6 +134,15 @@ RUN if [ "${SCRAPLING_VERSION}" = "latest" ]; then \
     uv tool install --python /nix-env/bin/python3 "$spec" && \
     "${UV_TOOL_DIR}/scrapling/bin/python" -c "from importlib.metadata import version; print(version('scrapling'))" > /app/scrapling-version.txt
 
+# Wrap the scrapling entry point so LD_LIBRARY_PATH is always set — curl_cffi's
+# prebuilt _wrapper.so dlopens libstdc++.so.6 at import time, and MCP launchers
+# (Qwen, OpenClaw) spawn the server with a restricted env that strips the
+# Dockerfile-level ENV. The wrapper re-exports the Nix libdir so scrapling is
+# self-contained regardless of who spawns it.
+RUN mv /usr/local/bin/scrapling /usr/local/bin/.scrapling-uv-shim && \
+    printf '#!/bin/sh\nexport LD_LIBRARY_PATH=/nix-env/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\nexec /usr/local/bin/.scrapling-uv-shim "$@"\n' > /usr/local/bin/scrapling && \
+    chmod +x /usr/local/bin/scrapling
+
 RUN node -e "const fs=require('fs'); const sbomEnabled=process.env.ENABLE_SBOM === 'true'; const info={nixSystem: process.env.NYX_NIX_SYSTEM, openclaw: {requested: process.env.OPENCLAW_VERSION, resolved: require('/usr/local/lib/node_modules/openclaw/package.json').version}, qwenCode: {requested: process.env.QWEN_CODE_VERSION, resolved: require('/usr/local/lib/node_modules/@qwen-code/qwen-code/package.json').version}, scrapling: {requested: process.env.SCRAPLING_VERSION, resolved: fs.readFileSync('/app/scrapling-version.txt', 'utf8').trim()}, synapse: {resolved: process.env.SYNAPSE_VERSION}, sonar: {resolved: process.env.SONAR_VERSION}, sbom: {enabled: sbomEnabled, path: sbomEnabled ? process.env.SBOM_PATH : null, statusPath: sbomEnabled ? null : '/app/sbom-status.json'}}; fs.writeFileSync('/app/build-info.json', JSON.stringify(info, null, 2));"
 
 ENV PATH=/nix-env/bin:/usr/local/bin:/usr/bin:/bin
