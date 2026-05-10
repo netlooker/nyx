@@ -4,9 +4,9 @@
 # be bind-mounted at /config/sonar.toml — entrypoint.sh switches SONAR_CONFIG
 # to the user copy when it exists.
 #
-# Sonar is pinned in the Nyx Nix base layer under /nix-env/bin (for example
-# /nix-env/bin/sonar-mcp). Those binaries are also exported on PATH, but Nyx
-# prefers the absolute /nix-env/bin path in MCP config.
+# Sonar is installed into the Docker image under /usr/local/bin (for example
+# /usr/local/bin/sonar-mcp). Those binaries are also exported on PATH, but Nyx
+# prefers the absolute /usr/local/bin path in MCP config.
 # The default Nyx wiring keeps Sonar MCP-first and points it at the internal
 # SearXNG sidecar service.
 

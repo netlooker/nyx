@@ -10,6 +10,9 @@ metadata: {"openclaw": {"requires": {"bins": ["sonar-mcp"]}}}
 
 Sonar is a deterministic live-web evidence engine. It searches the web through a private SearXNG instance, ranks and deduplicates results, fetches URLs while respecting robots.txt, and extracts readable text. No LLM inside — all mechanics are transparent and reproducible.
 
+In Nyx, Sonar is installed into the Docker image with `uv tool install`. The
+host does not need a separate Sonar or Python environment.
+
 ## Available tools
 
 | Tool | Purpose | Key params |
@@ -158,10 +161,10 @@ sonar_fetch(url="https://docs.python.org/3/library/asyncio.html")
 
 ## Configuration
 
-Sonar is part of the Nix base layer and is installed under `/nix-env/bin`
-(`/nix-env/bin/sonar-mcp`, `/nix-env/bin/sonar-api`,
-`/nix-env/bin/sonar-smoke`, `/nix-env/bin/sonar-python`). Those binaries are
-also exported on PATH, but Nyx prefers absolute paths in config.
+Sonar is installed into the Docker image under `/usr/local/bin`
+(`/usr/local/bin/sonar-mcp`, `/usr/local/bin/sonar-api`,
+`/usr/local/bin/sonar-smoke`, `/usr/local/bin/sonar-python`). Those binaries
+are also exported on PATH, but Nyx prefers absolute paths in config.
 
 The active config is selected by the `SONAR_CONFIG` env var:
 
@@ -184,7 +187,7 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 {
   "mcpServers": {
     "sonar": {
-      "command": "/nix-env/bin/sonar-mcp",
+      "command": "/usr/local/bin/sonar-mcp",
       "env": { "SONAR_MCP_TRANSPORT": "stdio" },
       "trust": true
     }

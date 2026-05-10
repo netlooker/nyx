@@ -10,6 +10,10 @@ metadata: {"openclaw": {"requires": {"bins": ["qwen"]}}}
 
 Three purpose-built subagents live under `~/.qwen/agents/` (source: `.agents/subagents/*.md`). They are invoked via Qwen Code in headless mode — each call spins up an isolated session with a restricted tool allowlist, runs the task end-to-end, and returns the final answer as text.
 
+The canonical subagent files are baked into the Docker image under
+`/app/subagents` and symlinked into Qwen's runtime directories at container
+start.
+
 Use this skill when you want the work done in a **separate context** from yours: deep multi-step research that would otherwise consume thousands of tokens here, or a specialized pipeline that already encodes the correct tool ordering.
 
 ## Available subagents
@@ -96,6 +100,6 @@ Extract with `grep '^BUNDLE_PATH:' <(qwen -p "...")` or parse the JSON output fo
 
 - **No `--agent` flag exists.** The Qwen docs for subagents describe them as invoked by natural-language delegation from the main agent. Naming the subagent in the prompt is the supported pattern.
 - **Without `--yolo`, Qwen hangs waiting for tool approval.** Shell-out has no TTY to answer the prompt.
-- **Subagent definitions live in `/app/subagents/*.md`** inside the container (symlinked to `~/.qwen/agents/` for discovery). Editing them requires a container restart or re-symlink; image rebuild is not required.
+- **Subagent definitions live in `/app/subagents/*.md`** inside the container (symlinked to `~/.qwen/agents/` for discovery). Editing tracked definitions requires rebuilding the Nyx image and recreating the container.
 - **Do not run two Qwen sessions concurrently against the same llama.cpp server** unless the server is configured for parallel slots — requests will serialize and the second will look hung.
 - **Quote the prompt correctly.** The outer shell strips one layer of quoting; prefer single-quoted prompts with no embedded single quotes, or heredoc for long prompts.

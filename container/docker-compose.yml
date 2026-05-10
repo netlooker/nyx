@@ -4,14 +4,15 @@ services:
       context: ..
       dockerfile: container/Dockerfile
       args:
-        NYX_NIX_SYSTEM: ${NYX_NIX_SYSTEM:-aarch64-linux}
+        NODE_MAJOR: ${NODE_MAJOR:-22}
+        UV_VERSION: ${UV_VERSION:-0.11.2}
         OPENCLAW_VERSION: ${OPENCLAW_VERSION:-latest}
         QWEN_CODE_VERSION: ${QWEN_CODE_VERSION:-latest}
         SCRAPLING_VERSION: ${SCRAPLING_VERSION:-latest}
-        SYNAPSE_VERSION: ${SYNAPSE_VERSION:-flake-pinned}
-        SONAR_VERSION: ${SONAR_VERSION:-flake-pinned}
-        ENABLE_SBOM: ${ENABLE_SBOM:-false}
-        SBOM_PATH: ${SBOM_PATH:-}
+        SYNAPSE_REF: ${SYNAPSE_REF:-main}
+        SYNAPSE_VERSION: ${SYNAPSE_VERSION:-main}
+        SONAR_REF: ${SONAR_REF:-main}
+        SONAR_VERSION: ${SONAR_VERSION:-main}
     image: nyx:latest
     restart: unless-stopped
     ports:
@@ -27,7 +28,8 @@ services:
       # This is your backup: ~/projects/nyx/data/ on Mac
       - ../data:/data
     env_file:
-      - ../secrets/.env
+      - path: ../secrets/.env
+        required: false
     # llama.cpp lives on the local network — reachable directly by IP, no special routing needed
 
   # Private metasearch sidecar for future Sonar integration.

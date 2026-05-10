@@ -7,6 +7,10 @@ This e2e is now intentionally split into two phases:
 
 That split exists because the fragile part was not Sonar itself. Sonar is already deterministic. The fragile part was asking the live model in TUI to drive `sonar_search` / `sonar_fetch` / `sonar_extract` correctly for a long multi-step paper-selection flow.
 
+The e2e assumes the Docker-only Nyx stack is running. Use `just build` and
+`just up` before preparing a run, or use the rebuild recipe when the live image
+may be stale.
+
 ## Why This Flow
 
 The goal is still the same:
@@ -160,8 +164,8 @@ This reduction is what makes the e2e more model-tolerant. The important detail i
 - rebuilt container exposes:
   - `/app/skills/sonar/SKILL.md`
   - `/app/skills/synapse/SKILL.md`
-  - `/nix-env/bin/sonar-mcp`
-  - `/nix-env/bin/synapse-mcp`
+  - `/usr/local/bin/sonar-mcp`
+  - `/usr/local/bin/synapse-mcp`
 - the prepared bundle exists and names exactly 5 selected sources
 - the compact manifest exists and names exactly 5 selected sources
 - each prepared source JSON and text artifact exists
@@ -200,7 +204,7 @@ The verifier does not require `sonar_*` tool calls in the transcript anymore, be
 A valid rebuilt image should expose:
 
 - the `sonar` and `synapse` skills under `/app/skills`
-- the `/nix-env/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` binaries
+- the `/usr/local/bin/sonar-mcp` and `/usr/local/bin/synapse-mcp` binaries
 - active MCP registrations for both `sonar` and `synapse`
 
 ## Practical Notes

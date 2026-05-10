@@ -8,10 +8,6 @@ secrets/
 workspaces/
 .tmp/
 
-# Nix build outputs
-result
-result-*
-
 # Python
 __pycache__/
 *.pyc

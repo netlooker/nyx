@@ -49,12 +49,12 @@
   },
 
   // MCP servers — expose external tools to the agent.
-  // `synapse` and `sonar` are both pinned in the Nix base layer.
+  // `synapse` and `sonar` are installed into the Docker image.
   // Sonar still points at the private SearXNG sidecar on the internal compose network.
   // Drop either entry from this list to disable it.
   "mcpServers": {
     "synapse": {
-      "command": "/nix-env/bin/synapse-mcp",
+      "command": "/usr/local/bin/synapse-mcp",
       "env": {
         "SYNAPSE_MCP_TRANSPORT": "stdio",
         // Explicit config path — required because `docker compose exec` does
@@ -65,7 +65,7 @@
       "trust": true
     },
     "sonar": {
-      "command": "/nix-env/bin/sonar-mcp",
+      "command": "/usr/local/bin/sonar-mcp",
       "env": {
         "SONAR_MCP_TRANSPORT": "stdio",
         "SONAR_CONFIG": "/config/sonar.toml"

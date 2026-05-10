@@ -2,163 +2,115 @@
 
 > *Ghost in the grid. Your AI agent, your hardware, your rules.*
 
-Nyx is a Nix-backed deployment chassis for [OpenClaw](https://openclaw.ai) — an autonomous AI agent that lives on **your** infrastructure, speaks over Telegram and WhatsApp, and thinks with whatever inference engine you point it at.
+Nyx is a Docker Compose deployment chassis for [OpenClaw](https://openclaw.ai) — an autonomous AI agent that lives on **your** infrastructure, speaks over Telegram and WhatsApp, and thinks with whatever inference engine you point it at.
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The base toolchain is compiled by Nix — Node.js, Python, git, Synapse, Sonar, build tools, and utilities are all pinned in `flake.nix` / `flake.lock`. On top of that pinned base, OpenClaw and Qwen Code are installed in the container image at build time. Nyx captures the requested app versions in image metadata and keeps the runtime state in mounted volumes so rebuilds do not wipe the agent's memory, sessions, or tool config. Live web search stays outside the Nyx image boundary itself: Sonar talks to the private SearXNG sidecar over the internal compose network.
+The runtime image is a plain Debian-based container. OpenClaw and Qwen Code are installed with npm, Synapse/Sonar/Scrapling are installed with uv, and selected versions are captured in Docker labels plus `/app/build-info.json`. Persistent state lives in mounted volumes, so rebuilds do not wipe agent memory, sessions, tool config, or browser backends.
 
-### Dual-Agent Architecture
-
-Nyx ships two AI coding agents inside the same container:
+## Dual-Agent Architecture
 
 - **OpenClaw** — the primary agent. Handles conversations, messaging channels, tool use, and long-running tasks.
-- **Qwen Code** — a headless sub-agent. OpenClaw delegates heavy or independent tasks to Qwen via CLI (`qwen -p "task" --output-format text`). Each invocation starts fresh with no conversation history, making it ideal for code review, parallel generation, second opinions, and Synapse MCP queries.
+- **Qwen Code** — a headless sub-agent. OpenClaw delegates heavy or independent tasks to Qwen via CLI (`qwen -p "task" --output-format text`).
 
-Both agents share the same local inference server (llama.cpp, Ollama, or any OpenAI-compatible endpoint). With `--parallel 2` on llama.cpp, each agent gets its own inference slot — they can work simultaneously without blocking each other.
+Both agents share the same local inference server: llama.cpp, Ollama, or any OpenAI-compatible endpoint.
 
----
+## Clone, Config, Build, Run
 
-## The Philosophy: Clone → Config → Bake → Run
-
-### 1. Clone
+Prerequisites are Docker with Compose and `just`. There is no project-level
+Nix setup step.
 
 ```bash
 git clone <this-repo> && cd nyx
 ```
 
-### 2. Config
-
-Drop your credentials into the heavily-gitignored `secrets/` directory:
+Create local config under the gitignored `secrets/` directory:
 
 ```bash
 cp container/openclaw.json5.example secrets/openclaw.json5
 cp container/qwen.json5.example secrets/qwen-settings.json
-# optional — synapse ships with a working default baked into the image;
-# copy only if you want to override vault paths, embedding providers, etc.
+# optional overrides
 cp container/synapse.toml.example secrets/synapse.toml
-# optional — sonar ships with a working default baked into the image;
-# copy only if you want to override SearXNG auth, DB path, cache policy, etc.
 cp container/sonar.toml.example secrets/sonar.toml
 $EDITOR secrets/openclaw.json5
 $EDITOR secrets/qwen-settings.json
 ```
 
-`openclaw.json5` is the primary config — wire up your inference node (Ollama, llama.cpp, any OpenAI-compatible endpoint) and your messaging channels (Telegram bot token, WhatsApp).
+`openclaw.json5` is the primary config. `qwen-settings.json` configures the Qwen Code sub-agent. Prefer absolute MCP command paths such as `/usr/local/bin/sonar-mcp` and `/usr/local/bin/synapse-mcp`.
 
-`qwen-settings.json` configures the Qwen Code sub-agent — point it at the same inference server and adjust temperature/max_tokens to taste. Prefer absolute MCP command paths such as `/nix-env/bin/sonar-mcp` and `/nix-env/bin/synapse-mcp` so Qwen does not depend on shell PATH quirks. Qwen is enabled by default; remove the file to disable it.
-
-`sonar.toml` is optional. The baked image default already targets the internal `http://searxng:8080` sidecar and stores its SQLite state under `/data`. Add `secrets/sonar.toml` only when you need to override those runtime defaults.
-
-For weaker local models, Nyx also recommends enabling OpenClaw's built-in tool
-loop detection under `tools.loopDetection` in `secrets/openclaw.json5`. This is
-especially useful when a model gets stuck repeating the same malformed MCP call
-after a schema-validation error. Nyx's example config enables it with a fairly
-strict threshold that is tuned for local-model tool use rather than cloud-model
-tool use.
-
-Full config reference in [GUIDE.md](GUIDE.md).
-
-### 3. Bake
+Build and run:
 
 ```bash
 just build
-```
-
-A single command. `just build` resolves the current OpenClaw and Qwen releases, passes those concrete versions into Docker, and labels the resulting image with the chosen app versions plus the selected Nix system. Stage 1 runs inside `nixos/nix` and produces the pinned base layer. Stage 2 keeps the current appliance model: Debian-slim runtime, Nix-pinned tools, OpenClaw on top.
-
-The default image build is optimized for fast rebuilds and does not generate an SBOM. Nyx always writes `/app/build-info.json` and labels the image with the selected Nix system plus the resolved app versions. If you want the heavier compliance path, use `just build-sbom`.
-
-### 4. Run
-
-```bash
 just up
 just logs
 ```
 
-Two volumes keep your agent alive across rebuilds:
+The dashboard is available at `http://localhost:18789` when gateway binding/auth are enabled in config.
+
+## Version Selection
+
+Tracked defaults live in `versions.env`:
+
+```dotenv
+NODE_MAJOR=22
+UV_VERSION=0.11.2
+OPENCLAW_VERSION=latest
+QWEN_CODE_VERSION=latest
+SCRAPLING_VERSION=latest
+SYNAPSE_REF=main
+SONAR_REF=main
+```
+
+`just build` resolves floating selectors to concrete versions or commits before Docker runs, then records the resolved values in image labels and `/app/build-info.json`.
+
+## Runtime Contract
 
 | Host | Container | Purpose |
 |---|---|---|
-| `secrets/` | `/config` | Hot-reloadable config — edit on your machine, agent picks it up live |
-| `data/` | `/data` | Agent state: workspace (services, tools, projects), sessions, sandboxes, gh auth |
+| `secrets/` | `/config` | Hot-reloadable config |
+| `data/` | `/data` | Agent state, sessions, sandboxes, gh auth, Scrapling browser caches |
 
-Push the image to any cloud registry. Deploy to any orchestrator. It's just a container.
-
-`just up` also starts a private `searxng` sidecar on the internal compose network. It is not host-exposed; future Sonar runtime integration should address it as `http://searxng:8080`.
-
-The appliance contract is the point:
-- edit `secrets/openclaw.json5` on the host and OpenClaw hot-reloads it in place
-- rebuild the image and the agent comes back with the same `/data` state
-- tool config that insists on `$HOME` is reattached automatically by `entrypoint.sh`
-
----
+`just up` also starts a private `searxng` sidecar on the internal compose network. Sonar reaches it at `http://searxng:8080`.
 
 ## Structure
 
-```
-flake.nix              — Nix derivation: pins Node.js, Python, gcc, cmake + optional SBOM derivation
-flake.lock             — Cryptographic lockfile — the single source of truth for versions
-.agents/skills/        — Agent skills shipped with the image (github, qwen-code, synapse, workspace)
-.github/workflows/
-  check.yml                — CI: validates compose config, shell syntax, flake outputs, image labels
+```text
+versions.env            — build selectors resolved by just
+.agents/skills/         — agent skills shipped with the image
+.github/workflows/      — CI: checks, image build, metadata verification
 container/
-  Dockerfile               — Multi-stage build: Nix base (incl. Synapse/Sonar) → Debian-slim + OpenClaw/Qwen metadata
-  docker-compose.yml       — Volume mounts, port bindings, build args, env_file for secrets
-  entrypoint.sh            — Creates workspace structure, symlinks tool configs + skills before openclaw starts
-  openclaw.json5.example   — OpenClaw template config — copy to secrets/ and fill in your values
-  qwen.json5.example       — Qwen Code template config — copy to secrets/qwen-settings.json
-  sonar.toml.example       — Sonar template config — copy to secrets/sonar.toml to override image defaults
-  searxng/settings.yml     — Private SearXNG sidecar defaults for future Sonar integration
-  WORKSPACE.md             — Agent workspace instructions — seeded into /data/workspace on first boot
-secrets/               — Gitignored. Config, env vars, and credentials live here.
-  openclaw.json5       — OpenClaw config (hot-reloaded)
-  qwen-settings.json   — Qwen Code config (injected by entrypoint.sh)
-  sonar.toml           — Optional Sonar runtime override
-  .env                 — Environment variables (gateway password, API keys)
-data/                  — Gitignored. Persistent agent state.
-  workspace/
-    .agents/skills/ → /app/skills  — symlinked from image, updated on rebuild
-    services/              — Long-running processes with UI/API
-    tools/                 — CLIs and utilities the agent installs
-    projects/              — Git repos the agent works on (synapse, etc.)
-justfile               — Task runner: build / build-sbom / build-base / up / down / logs / status / check
-PRD.md                 — Product requirements document
+  Dockerfile            — Debian runtime + npm/uv installed tools
+  docker-compose.yml    — volume mounts, ports, build args, env_file
+  entrypoint.sh         — workspace/config setup before OpenClaw starts
+  *.example             — config templates
+  searxng/settings.yml  — private SearXNG sidecar defaults
+  WORKSPACE.md          — seeded into /data/workspace on first boot
+secrets/                — gitignored credentials and config
+data/                   — gitignored persistent runtime state
+justfile                — build / up / down / logs / status / check
 ```
-
----
 
 ## Useful Commands
 
 ```bash
-just build-base # build + load the standalone Nix base image
-just build     # fast default build: pinned base + resolved app versions
-just build-sbom # opt-in build that also generates the bombon SBOM artifact
-just check     # validate compose config, shell syntax, flake outputs
-just up        # start the agent
-just down      # stop the agent
-just logs      # tail live output
-just rebuild   # full rebuild from scratch — no cache
-just restart   # restart without rebuilding
-just status    # show openclaw status (channels, sessions, context usage)
-just e2e-sonar-synapse-prepare # prepare the deterministic-Sonar -> OpenClaw TUI -> Synapse e2e run
-just e2e-sonar-synapse-prepare-rebuild # rebuild Nyx and prepare the same e2e run
-just e2e-sonar-synapse-collect-sources <test_id> # rerun only the deterministic Sonar source-collection phase
-just e2e-sonar-synapse-verify <test_id> # verify source artifacts, notes, transcript, and Synapse DB for one run
-just update-sonar # bump the flake-pinned Sonar commit to the latest main
+just build
+just check
+just up
+just down
+just logs
+just restart
+just rebuild
+just status
+just e2e-sonar-synapse-prepare
+just e2e-sonar-synapse-prepare-rebuild
+just e2e-sonar-synapse-collect-sources <test_id>
+just e2e-sonar-synapse-verify <test_id>
 ```
-
-Agent dashboard at `http://localhost:18789` (enable `gateway.bind: 'lan'` + password via `secrets/.env`).
-
-Set `NYX_NIX_SYSTEM=x86_64-linux` on x86 Docker hosts. Apple Silicon keeps the default `aarch64-linux`.
-
-For SBOM lovers, `just build-sbom` turns the compliance path back on and writes `/app/sbom-base.json`.
-
----
 
 ## Deep Dives
 
-- [GUIDE.md](GUIDE.md) — Telegram pairing, WhatsApp QR auth, config reference
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Why Nix + Docker, how the two-layer boundary works, hot-reload internals
-- [E2E_SONAR_SYNAPSE.md](E2E_SONAR_SYNAPSE.md) — Two-phase paper-ingestion e2e: deterministic Sonar collection plus TUI/Synapse verification
-- [PRD.md](PRD.md) — Product requirements and design decisions
+- [GUIDE.md](GUIDE.md) — setup, pairing, and config reference
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Docker runtime, persistence, and metadata
+- [E2E_SONAR_SYNAPSE.md](E2E_SONAR_SYNAPSE.md) — deterministic Sonar collection plus TUI/Synapse verification
+- [PRD.md](PRD.md) — product requirements and design notes

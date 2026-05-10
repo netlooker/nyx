@@ -9,6 +9,8 @@ metadata: {"openclaw": {"requires": {"bins": ["gh"]}}}
 # GitHub CLI
 
 `gh` is pre-installed and auth persists across container rebuilds via `/data/gh`.
+The binary is image-provided on the Docker runtime PATH; do not assume any
+host-side package-manager environment exists inside Nyx.
 
 ## First-time auth
 

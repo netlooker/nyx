@@ -10,6 +10,10 @@ metadata: {"openclaw": {"requires": {"bins": ["qwen"]}}}
 
 Qwen Code is a second AI coding agent running inside this container. Delegate tasks via its headless CLI and read back the results. It runs a local model on llama.cpp — no cloud dependency.
 
+Qwen Code is installed into the Docker image through npm and is available as
+`/usr/local/bin/qwen`. Version selection is controlled by `versions.env` and
+recorded in `/app/build-info.json`.
+
 Qwen can also reuse the project skills mounted into the workspace. In practice,
 that means the same Sonar and Synapse guidance used by the main Nyx agent can
 be applied in Qwen runs too, as long as the prompt keeps the workflow narrow.
