@@ -59,13 +59,13 @@
   // mcp: {
   //   servers: {
   //     sonar: {
-  //       command: '/nix-env/bin/sonar-mcp',
+  //       command: '/usr/local/bin/sonar-mcp',
   //       env: {
   //         SONAR_MCP_TRANSPORT: 'stdio',
   //       },
   //     },
   //     synapse: {
-  //       command: '/nix-env/bin/synapse-mcp',
+  //       command: '/usr/local/bin/synapse-mcp',
   //       env: { SYNAPSE_MCP_TRANSPORT: 'stdio' },
   //     },
   //     scrapling: {

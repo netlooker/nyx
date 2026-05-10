@@ -9,6 +9,9 @@ disable-model-invocation: false
 
 Synapse is a semantic retrieval, discovery, and compiled-knowledge engine for markdown knowledge bases. It indexes markdown folders into vector embeddings, exposes search/discovery/validation/reasoning over MCP, and — when the knowledge layer is enabled — ingests prepared research bundles into reviewable `source_summary` proposals that operators apply into a managed subtree of the vault.
 
+In Nyx, Synapse is installed into the Docker image with `uv tool install`. The
+host does not need a separate Synapse or Python environment.
+
 ## Available tools
 
 ### Deterministic retrieval (no LLM required)
@@ -169,14 +172,12 @@ synapse_knowledge_overview()
 
 ## Configuration
 
-Synapse is part of the Nix base layer (`flake.nix` pins it to a tag commit by
-rev + sha256 — currently v0.3.1) and is installed under `/nix-env/bin`
-(`/nix-env/bin/synapse-mcp`, `/nix-env/bin/synapse-index`,
-`/nix-env/bin/synapse-search`, `/nix-env/bin/synapse-ingest-bundle`, etc.).
+Synapse is installed into the Docker image under `/usr/local/bin`
+(`/usr/local/bin/synapse-mcp`, `/usr/local/bin/synapse-index`,
+`/usr/local/bin/synapse-search`, `/usr/local/bin/synapse-ingest-bundle`, etc.).
 Those binaries are also exported on PATH, but Nyx prefers absolute paths in
-config. Bumping: update the `rev` + `hash` in `flake.nix` to the newest tag
-commit, then `just rebuild`. (`just update-synapse` tracks `main`, not tags —
-use it only when main is at the release you want.)
+config. Version selection lives in `versions.env`; `just build` resolves the
+configured ref before Docker installs it.
 
 The active config is selected by the `SYNAPSE_CONFIG` env var:
 
@@ -200,7 +201,7 @@ MCP server registration (already wired in `container/qwen.json5.example`):
 {
   "mcpServers": {
     "synapse": {
-      "command": "/nix-env/bin/synapse-mcp",
+      "command": "/usr/local/bin/synapse-mcp",
       "env": { "SYNAPSE_MCP_TRANSPORT": "stdio" },
       "trust": true
     }

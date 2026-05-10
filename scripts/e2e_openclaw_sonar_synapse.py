@@ -433,7 +433,7 @@ def collect_sources_for_layout(layout: RunLayout, query: str) -> dict[str, Any]:
             "nyx",
             "sh",
             "-lc",
-            f"SONAR_DB={shlex.quote(layout.container_sonar_db_path)} /nix-env/bin/sonar-python {shlex.quote(str(Path(layout.container_artifacts_dir) / 'collect_sources.py'))}",
+            f"SONAR_DB={shlex.quote(layout.container_sonar_db_path)} /usr/local/bin/sonar-python {shlex.quote(str(Path(layout.container_artifacts_dir) / 'collect_sources.py'))}",
         ],
         check=False,
     )
@@ -537,7 +537,7 @@ def render_sonar_collection_script(layout: RunLayout, query: str) -> str:
         "source_dir": layout.container_source_dir,
     }
     payload_json = json.dumps(payload)
-    return f"""#!/nix-env/bin/sonar-python
+    return f"""#!/usr/local/bin/sonar-python
 from __future__ import annotations
 
 import json
@@ -736,8 +736,8 @@ def collect_prepare_preflight(layout: RunLayout) -> dict[str, Any]:
     checks.append(check_container_file("synapse_skill_present", "/app/skills/synapse/SKILL.md"))
     checks.append(check_container_file("workspace_sonar_skill_present", "/data/workspace/.agents/skills/sonar/SKILL.md"))
     checks.append(check_container_file("workspace_synapse_skill_present", "/data/workspace/.agents/skills/synapse/SKILL.md"))
-    checks.append(check_container_file("sonar_mcp_available", "/nix-env/bin/sonar-mcp"))
-    checks.append(check_container_file("synapse_mcp_available", "/nix-env/bin/synapse-mcp"))
+    checks.append(check_container_file("sonar_mcp_available", "/usr/local/bin/sonar-mcp"))
+    checks.append(check_container_file("synapse_mcp_available", "/usr/local/bin/synapse-mcp"))
     checks.append(check_container_file("build_info_present", "/app/build-info.json"))
     checks.append(check_host_path_writable("e2e_root_writable", layout.host_root))
     checks.append(check_host_path_writable("e2e_vault_writable", layout.host_vault_root))

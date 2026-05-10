@@ -1,6 +1,8 @@
 # Workspace
 
 This is your persistent workspace. Everything here survives container rebuilds.
+Runtime tools are image-provided under `/usr/local/bin`; install project-local
+dependencies inside each project rather than changing the container OS.
 
 ## Structure
 

@@ -1,45 +1,58 @@
 # Nyx — task runner
-# Install just: nix develop (it's in the devShell)
+# Install just from your package manager: https://just.systems/
 
-# Build and load the standalone Nix base image tarball
-build-base:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    nix build ".#packages.$system.base-image" && \
-    docker load < result
+set dotenv-load := false
 
-# Build and load the standalone Nix base image tarball with an SBOM artifact
-build-base-sbom:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    nix build ".#packages.$system.base-image-sbom" && \
-    docker load < result
+_resolve_env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -a
+    source versions.env
+    set +a
+    openclaw_version="${OPENCLAW_VERSION:-latest}"
+    if [ "$openclaw_version" = "latest" ]; then
+      openclaw_version="$(npm view openclaw version)"
+    fi
+    qwen_code_version="${QWEN_CODE_VERSION:-latest}"
+    if [ "$qwen_code_version" = "latest" ]; then
+      qwen_code_version="$(npm view @qwen-code/qwen-code version)"
+    fi
+    scrapling_version="${SCRAPLING_VERSION:-latest}"
+    if [ "$scrapling_version" = "latest" ]; then
+      scrapling_version="$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)"
+    fi
+    synapse_ref="${SYNAPSE_REF:-main}"
+    synapse_version="$(git ls-remote https://github.com/netlooker/synapse.git "$synapse_ref" | awk '{print $1}')"
+    if [ -z "$synapse_version" ]; then
+      synapse_version="$synapse_ref"
+    fi
+    sonar_ref="${SONAR_REF:-main}"
+    sonar_version="$(git ls-remote https://github.com/netlooker/sonar.git "$sonar_ref" | awk '{print $1}')"
+    if [ -z "$sonar_version" ]; then
+      sonar_version="$sonar_ref"
+    fi
+    printf 'export NODE_MAJOR=%q\n' "${NODE_MAJOR:-22}"
+    printf 'export UV_VERSION=%q\n' "${UV_VERSION:-0.11.2}"
+    printf 'export OPENCLAW_VERSION=%q\n' "$openclaw_version"
+    printf 'export QWEN_CODE_VERSION=%q\n' "$qwen_code_version"
+    printf 'export SCRAPLING_VERSION=%q\n' "$scrapling_version"
+    printf 'export SYNAPSE_REF=%q\n' "$synapse_ref"
+    printf 'export SYNAPSE_VERSION=%q\n' "$synapse_version"
+    printf 'export SONAR_REF=%q\n' "$sonar_ref"
+    printf 'export SONAR_VERSION=%q\n' "$sonar_version"
 
-# Build the container (includes Nix base layer via multi-stage build)
+# Build the Docker image with concrete, metadata-recorded tool versions.
 build:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
-    qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
-    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
-    sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
-      docker compose -f container/docker-compose.yml build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(just _resolve_env)"
+    docker compose -f container/docker-compose.yml build
 
-# Build the container with the optional bombon SBOM path enabled
-build-sbom:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
-    qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
-    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
-    sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
-      docker compose -f container/docker-compose.yml build
-
-# Start the container
+# Start the stack
 up:
     docker compose -f container/docker-compose.yml up -d
 
-# Stop the container
+# Stop the stack
 down:
     docker compose -f container/docker-compose.yml down
 
@@ -47,52 +60,30 @@ down:
 logs:
     docker compose -f container/docker-compose.yml logs -f
 
-# Rebuild and restart (no cache)
+# Rebuild and restart without Docker cache
 rebuild:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
-    qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
-    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
-    sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=false SBOM_PATH="" \
-      docker compose -f container/docker-compose.yml build --no-cache
-    docker compose -f container/docker-compose.yml up -d
-
-# Rebuild and restart with SBOM generation enabled
-rebuild-sbom:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    openclaw_version="${OPENCLAW_VERSION:-$(npm view openclaw version)}"; \
-    qwen_code_version="${QWEN_CODE_VERSION:-$(npm view @qwen-code/qwen-code version)}"; \
-    scrapling_version="${SCRAPLING_VERSION:-$(curl -fsSL https://pypi.org/pypi/scrapling/json | jq -r .info.version)}"; \
-    synapse_version="${SYNAPSE_VERSION:-$(nix eval --raw ".#packages.$system.synapse.src.rev")}"; \
-    sonar_version="${SONAR_VERSION:-$(nix eval --raw ".#packages.$system.sonar.src.rev")}"; \
-    NYX_NIX_SYSTEM="$system" OPENCLAW_VERSION="$openclaw_version" QWEN_CODE_VERSION="$qwen_code_version" SCRAPLING_VERSION="$scrapling_version" SYNAPSE_VERSION="$synapse_version" SONAR_VERSION="$sonar_version" ENABLE_SBOM=true SBOM_PATH="/app/sbom-base.json" \
-      docker compose -f container/docker-compose.yml build --no-cache
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(just _resolve_env)"
+    docker compose -f container/docker-compose.yml build --no-cache
     docker compose -f container/docker-compose.yml up -d
 
 # Restart without rebuilding
 restart:
     docker compose -f container/docker-compose.yml restart
 
-# Show openclaw status (channels, sessions, context usage)
+# Show OpenClaw status (channels, sessions, context usage)
 status:
     docker compose -f container/docker-compose.yml exec nyx openclaw status
 
 # Validate the repo contract without mutating tracked files
 check:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    docker compose -f container/docker-compose.yml config >/dev/null && \
-    sh -n container/entrypoint.sh && \
-    python3 -m py_compile scripts/e2e_openclaw_sonar_synapse.py && \
-    nix flake show --all-systems >/dev/null && \
-    nix eval --raw ".#packages.$system.base-content.name" >/dev/null && \
+    docker compose -f container/docker-compose.yml config >/dev/null
+    sh -n container/entrypoint.sh
+    python3 -m py_compile scripts/e2e_openclaw_sonar_synapse.py
     grep -q 'io.github.netlooker.nyx.build-info' container/Dockerfile
-
-# Validate the optional SBOM derivation separately from the default build path
-check-sbom:
-    system="${NYX_NIX_SYSTEM:-aarch64-linux}"; \
-    nix eval --raw ".#packages.$system.sbom-dir.name" >/dev/null
+    grep -q '/usr/local/bin/synapse-mcp' container/openclaw.json5.example
+    grep -q '/usr/local/bin/sonar-mcp' container/openclaw.json5.example
 
 # Prepare the deterministic-Sonar -> OpenClaw TUI -> Synapse e2e run layout and prompt
 e2e-sonar-synapse-prepare:
@@ -109,51 +100,3 @@ e2e-sonar-synapse-collect-sources TEST_ID:
 # Verify a completed deterministic-Sonar -> OpenClaw/Synapse e2e run
 e2e-sonar-synapse-verify TEST_ID:
     python3 scripts/e2e_openclaw_sonar_synapse.py verify --test-id {{TEST_ID}}
-
-# Bump synapse to the latest main commit and rewrite flake.nix (rev + hash)
-update-synapse:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    new_rev="$(git ls-remote https://github.com/netlooker/synapse.git main | cut -f1)"
-    echo "latest main: $new_rev"
-    current_rev="$(grep -oE 'rev = "[0-9a-f]{40}"' flake.nix | head -1 | cut -d'"' -f2)"
-    if [ "$new_rev" = "$current_rev" ]; then
-      echo "already up to date ($current_rev)"
-      exit 0
-    fi
-    echo "prefetching sha256…"
-    prefetch="$(nix shell nixpkgs#nix-prefetch-github --command nix-prefetch-github netlooker synapse --rev "$new_rev")"
-    new_hash="$(printf '%s' "$prefetch" | grep -oE '"hash": "[^"]+"' | cut -d'"' -f4)"
-    old_hash="$(grep -oE 'hash = "sha256-[^"]+"' flake.nix | head -1 | cut -d'"' -f2)"
-    echo "rev:  $current_rev → $new_rev"
-    echo "hash: $old_hash → $new_hash"
-    sed -i.bak \
-      -e "s|rev = \"$current_rev\"|rev = \"$new_rev\"|" \
-      -e "s|hash = \"$old_hash\"|hash = \"$new_hash\"|" \
-      flake.nix
-    rm -f flake.nix.bak
-    echo "flake.nix updated — run 'just build' to rebuild the image"
-
-# Bump Sonar to the latest main commit and rewrite flake.nix (rev + hash)
-update-sonar:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    new_rev="$(git ls-remote https://github.com/netlooker/sonar.git main | cut -f1)"
-    echo "latest main: $new_rev"
-    current_rev="$(grep -oE 'rev = "[0-9a-f]{40}"' flake.nix | tail -1 | cut -d'"' -f2)"
-    if [ "$new_rev" = "$current_rev" ]; then
-      echo "already up to date ($current_rev)"
-      exit 0
-    fi
-    echo "prefetching sha256…"
-    prefetch="$(nix shell nixpkgs#nix-prefetch-github --command nix-prefetch-github netlooker sonar --rev "$new_rev")"
-    new_hash="$(printf '%s' "$prefetch" | grep -oE '"hash": "[^"]+"' | cut -d'"' -f4)"
-    old_hash="$(grep -oE 'hash = "sha256-[^"]+"' flake.nix | tail -1 | cut -d'"' -f2)"
-    echo "rev:  $current_rev → $new_rev"
-    echo "hash: $old_hash → $new_hash"
-    sed -i.bak \
-      -e "0,/rev = \"$current_rev\"/s//rev = \"$new_rev\"/" \
-      -e "0,/hash = \"$old_hash\"/s//hash = \"$new_hash\"/" \
-      flake.nix
-    rm -f flake.nix.bak
-    echo "flake.nix updated — run 'just build' to rebuild the image"

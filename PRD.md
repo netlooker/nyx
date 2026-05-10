@@ -13,7 +13,7 @@ Specific waste patterns in agentic loops:
 
 ### Why Not RTK
 
-RTK (already in our Nix toolchain) compresses shell output. But its auto-rewrite hook silently transforms command output without the agent knowing. Result: the agent makes extra tool calls to recover stripped information. Benchmarks show +18% cost increase, +50% output tokens, +26% duration. The input savings are dwarfed by output increases. See [rtk-ai/rtk#582](https://github.com/rtk-ai/rtk/issues/582).
+RTK can compress shell output. But its auto-rewrite hook silently transforms command output without the agent knowing. Result: the agent makes extra tool calls to recover stripped information. Benchmarks show +18% cost increase, +50% output tokens, +26% duration. The input savings are dwarfed by output increases. See [rtk-ai/rtk#582](https://github.com/rtk-ai/rtk/issues/582).
 
 The lesson: **silent compression is counterproductive.** The agent must know what was compressed.
 
@@ -77,7 +77,7 @@ Streaming (`stream: true`) is required — OpenClaw uses SSE for chat completion
 
 ### Language: Go
 
-Single static binary. Excellent HTTP proxy primitives (`net/http/httputil`). Goroutines handle concurrency without complexity. Nix can build it deterministically. Fast enough for the <10ms latency target.
+Single static binary. Excellent HTTP proxy primitives (`net/http/httputil`). Goroutines handle concurrency without complexity. Fast enough for the <10ms latency target.
 
 Not Rust (unnecessary performance ceiling for an HTTP proxy, longer dev time). Not Python (explicitly rejected — this is not MetaClaw). Not Node.js (event loop contention under proxy load).
 
@@ -211,6 +211,10 @@ enabled = false
 
 ## Nyx Integration
 
+Nyx's current baseline is a Docker-only Compose appliance. Axon, if built, must
+fit that shape: no host package-manager setup, no side runtime bootstrap, and no
+extra local prerequisites beyond Docker Compose and `just`.
+
 ### docker-compose.yml
 
 ```yaml
@@ -237,9 +241,9 @@ services:
 
 Add `mkdir -p /data/axon` for the decision log directory.
 
-### Nix
+### Runtime Packaging
 
-Phase 1: separate Dockerfile (no flake.nix changes). Phase 2+: add the Go binary to `flake.nix` as a Nix-built package in `basePaths` for full toolchain pinning.
+Build Axon in the Docker image or as a separate release artifact. Keep the runtime container path Docker-only.
 
 ### Heartbeat Integration
 

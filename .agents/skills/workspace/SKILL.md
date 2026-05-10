@@ -8,6 +8,8 @@ disable-model-invocation: false
 # Workspace Layout
 
 The persistent workspace at `/data/workspace` survives container rebuilds. Everything outside `/data` is ephemeral.
+Nyx runtime tools are image-installed under `/usr/local/bin`; workspace projects
+should keep their own dependencies inside their project directories.
 
 ## Folder structure
 

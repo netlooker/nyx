@@ -114,7 +114,7 @@ close_session(session_id="gh-login")
 
 ## Configuration
 
-Scrapling is installed via `uv tool` into `/opt/uv/tools/scrapling` at image build time. The CLI lives at `/usr/local/bin/scrapling` (on PATH). Version is pinned via the `SCRAPLING_VERSION` build arg in `justfile`/`docker-compose.yml` and recorded in `/app/build-info.json`.
+Scrapling is installed via `uv tool` into `/opt/uv/tools/scrapling` at image build time. The CLI lives at `/usr/local/bin/scrapling` (on PATH). Version selection lives in `versions.env`; `just build` resolves it before Docker installs the tool and records the result in `/app/build-info.json`.
 
 Browser backends (Playwright chromium, Camoufox) are downloaded on first container boot into `/data/scrapling/ms-playwright` and `/data/scrapling/camoufox` (symlinked from `~/.cache/…`) so they persist across image rebuilds.
 

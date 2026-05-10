@@ -4,9 +4,9 @@
 # be bind-mounted at /config/synapse.toml — entrypoint.sh switches
 # SYNAPSE_CONFIG to the user copy when it exists.
 #
-# Synapse binaries live under /nix-env/bin (for example
-# /nix-env/bin/synapse-mcp). They are also exported on PATH, but Nyx prefers
-# the absolute /nix-env/bin path in MCP config.
+# Synapse binaries live under /usr/local/bin (for example
+# /usr/local/bin/synapse-mcp). They are also exported on PATH, but Nyx prefers
+# the absolute /usr/local/bin path in MCP config.
 # Qwen Code has it wired by default via container/qwen.json5.example.
 
 [vault]
