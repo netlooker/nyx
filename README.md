@@ -113,4 +113,5 @@ just e2e-sonar-synapse-verify <test_id>
 - [GUIDE.md](GUIDE.md) — setup, pairing, and config reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Docker runtime, persistence, and metadata
 - [E2E_SONAR_SYNAPSE.md](E2E_SONAR_SYNAPSE.md) — deterministic Sonar collection plus TUI/Synapse verification
+- [patches/openclaw-2026.5.7-llamacpp-usage.md](patches/openclaw-2026.5.7-llamacpp-usage.md) — temporary OpenClaw `2026.5.7` llama.cpp streaming usage workaround
 - [PRD.md](PRD.md) — product requirements and design notes

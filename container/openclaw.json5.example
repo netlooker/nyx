@@ -27,6 +27,9 @@
         // baseUrl: 'http://192.168.1.x:8008/v1',
         // api: 'openai-completions',
         // apiKey: 'local_inference',
+        // Required when baseUrl points at a trusted RFC1918/LAN host and
+        // OpenClaw's guarded transport is used for streaming usage metadata.
+        // request: { allowPrivateNetwork: true },
         // models: [
         //   { id: 'your-model.gguf', name: 'Local Model' },
         // ],

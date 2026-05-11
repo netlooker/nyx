@@ -53,6 +53,11 @@ models: {
       baseUrl: 'http://192.168.1.x:8005/v1',
       api: 'openai-completions',
       apiKey: 'local_inference',
+      request: {
+        // Required for trusted LAN/private-IP llama.cpp endpoints when
+        // OpenClaw uses its guarded transport path.
+        allowPrivateNetwork: true,
+      },
       models: [
         {
           id: 'your-model.gguf',
@@ -157,3 +162,10 @@ Inspect captured metadata:
 ```bash
 docker image inspect nyx:latest --format '{{json .Config.Labels}}'
 ```
+
+Before rebuilding or upgrading OpenClaw, review the local llama.cpp usage
+workaround in
+[`patches/openclaw-2026.5.7-llamacpp-usage.md`](patches/openclaw-2026.5.7-llamacpp-usage.md).
+OpenClaw `2026.5.7` can otherwise lose streamed usage metadata from
+self-hosted OpenAI-compatible llama.cpp endpoints, causing `unknown/262k (?)`
+context status on fresh sessions.
