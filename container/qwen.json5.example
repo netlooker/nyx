@@ -25,7 +25,7 @@
       // "contextWindowSize": 131072,
       "samplingParams": {
         // "temperature": 0.6,
-        // "max_tokens": 16384
+        // "max_tokens": 12288
       }
     }
   },
@@ -40,7 +40,8 @@
       //   "envKey": "LLAMACPP_API_KEY",
       //   "baseUrl": "http://192.168.1.x:8008/v1",
       //   "generationConfig": {
-      //     "samplingParams": { "temperature": 0.6, "max_tokens": 16384 }
+      //     "contextWindowSize": 131072,
+      //     "samplingParams": { "temperature": 0.6, "max_tokens": 12288 }
       //   }
       // }
     ]

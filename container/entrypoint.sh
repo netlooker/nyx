@@ -1,9 +1,9 @@
 #!/bin/sh
-# Runs at container start, after volume mounts — before openclaw.
+# Runs at container start, after volume mounts — before the selected orchestrator.
 
 # Workspace structure: services (long-running UIs/APIs), tools (CLIs),
-# projects (git repos the agent works on).
-mkdir -p /data/workspace/services /data/workspace/tools /data/workspace/projects
+# projects (git repos the agent works on), images, and config directory.
+mkdir -p /config /data/workspace/services /data/workspace/tools /data/workspace/projects /data/workspace/images
 
 # Make the runtime command surface explicit for shells, maintenance commands,
 # and child processes that do not preserve the Dockerfile PATH verbatim.
@@ -91,4 +91,55 @@ for agent in /app/subagents/*.md; do
   ln -sf "$agent" "/data/workspace/.qwen/agents/$(basename "$agent")"
 done
 
-exec "$@"
+if [ "$#" -gt 0 ] && [ "$1" != "nyx-orchestrator" ]; then
+  exec "$@"
+fi
+
+case "${NYX_ORCHESTRATOR:-}" in
+  openclaw)
+    echo "[nyx] orchestrator: openclaw"
+    exec openclaw gateway run
+    ;;
+  hermes)
+    echo "[nyx] orchestrator: hermes"
+    export HERMES_HOME=/data/hermes
+    mkdir -p "$HERMES_HOME"
+
+    if [ -f /config/hermes.yaml ]; then
+      echo "[nyx] hermes config: /config/hermes.yaml (user override)"
+      rm -f "$HERMES_HOME/config.yaml"
+      ln -sf /config/hermes.yaml "$HERMES_HOME/config.yaml"
+    else
+      echo "[nyx] hermes config: /config/hermes.yaml -> /app/hermes.yaml.default (image default)"
+      ln -sf /app/hermes.yaml.default /config/hermes.yaml
+      rm -f "$HERMES_HOME/config.yaml"
+      ln -sf /config/hermes.yaml "$HERMES_HOME/config.yaml"
+    fi
+
+    if [ -f /config/hermes.env ]; then
+      echo "[nyx] hermes env: /config/hermes.env (user override)"
+      rm -f "$HERMES_HOME/.env"
+      ln -sf /config/hermes.env "$HERMES_HOME/.env"
+    elif [ -L "$HERMES_HOME/.env" ] && [ ! -e "$HERMES_HOME/.env" ]; then
+      rm -f "$HERMES_HOME/.env"
+    fi
+
+    if [ -f /config/hermes-soul.md ]; then
+      echo "[nyx] hermes soul: /config/hermes-soul.md (user override)"
+      rm -f "$HERMES_HOME/SOUL.md"
+      ln -sf /config/hermes-soul.md "$HERMES_HOME/SOUL.md"
+    elif [ ! -f "$HERMES_HOME/SOUL.md" ]; then
+      cp /app/hermes-soul.default "$HERMES_HOME/SOUL.md"
+    fi
+
+    exec hermes gateway run
+    ;;
+  "")
+    echo "[nyx] NYX_ORCHESTRATOR is required: set it to openclaw or hermes" >&2
+    exit 1
+    ;;
+  *)
+    echo "[nyx] invalid NYX_ORCHESTRATOR='$NYX_ORCHESTRATOR' (expected openclaw or hermes)" >&2
+    exit 1
+    ;;
+esac

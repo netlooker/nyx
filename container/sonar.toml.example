@@ -9,6 +9,10 @@
 # prefers the absolute /usr/local/bin path in MCP config.
 # The default Nyx wiring keeps Sonar MCP-first and points it at the internal
 # SearXNG sidecar service.
+#
+# Topic-level semantic source pruning in `sonar_collect_sources_for_topic`
+# requires embeddings configuration plus provider auth via
+# `SONAR_EMBEDDINGS_API_KEY` or `OPENAI_API_KEY`.
 
 [searxng]
 base_url = "http://searxng:8080"
@@ -34,6 +38,12 @@ user_agent = "Sonar/0.1"
 [search]
 default_limit = 8
 max_limit = 20
+
+[embeddings]
+enabled = true
+base_url = "https://api.openai.com/v1"
+model = "text-embedding-3-small"
+similarity_threshold = 0.35
 
 [ranking.domain_priors]
 "docs.python.org" = 0.35

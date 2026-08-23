@@ -9,22 +9,36 @@ services:
         OPENCLAW_VERSION: ${OPENCLAW_VERSION:-latest}
         QWEN_CODE_VERSION: ${QWEN_CODE_VERSION:-latest}
         SCRAPLING_VERSION: ${SCRAPLING_VERSION:-latest}
+        HERMES_REF: ${HERMES_REF:-main}
+        HERMES_VERSION: ${HERMES_VERSION:-main}
         SYNAPSE_REF: ${SYNAPSE_REF:-main}
         SYNAPSE_VERSION: ${SYNAPSE_VERSION:-main}
         SONAR_REF: ${SONAR_REF:-main}
         SONAR_VERSION: ${SONAR_VERSION:-main}
+        OPTIC_SPARK_REF: ${OPTIC_SPARK_REF:-main}
+        OPTIC_SPARK_VERSION: ${OPTIC_SPARK_VERSION:-main}
     image: nyx:latest
     restart: unless-stopped
     ports:
       - "18789:18789"
       - "${SYNAPSE_API_PORT:-8765}:${SYNAPSE_API_PORT:-8765}"
+      # Optic-Spark CLI starts an ephemeral webhook listener with net.Listen(":0").
+      # Keep the container ephemeral range aligned with this published range so
+      # the remote Optic-Spark API can callback through the Docker host.
+      - "${OPTIC_SPARK_CALLBACK_PORT_MIN:-17070}-${OPTIC_SPARK_CALLBACK_PORT_MAX:-17170}:${OPTIC_SPARK_CALLBACK_PORT_MIN:-17070}-${OPTIC_SPARK_CALLBACK_PORT_MAX:-17170}"
+    sysctls:
+      net.ipv4.ip_local_port_range: "${OPTIC_SPARK_CALLBACK_PORT_MIN:-17070} ${OPTIC_SPARK_CALLBACK_PORT_MAX:-17170}"
     environment:
+      HERMES_HOME: /data/hermes
       SYNAPSE_API_ENABLED: "${SYNAPSE_API_ENABLED:-true}"
       SYNAPSE_API_PORT: "${SYNAPSE_API_PORT:-8765}"
+      OPTIC_SPARK_API_URL: "${OPTIC_SPARK_API_URL:-http://192.168.1.x:7070}"
+      OPTIC_SPARK_CALLBACK_HOST: "${OPTIC_SPARK_CALLBACK_HOST:-http://192.168.1.x}"
+      OPTIC_SPARK_OUT_DIR: "${OPTIC_SPARK_OUT_DIR:-/data/workspace/images}"
     volumes:
-      # Config — edit on Mac, live-reloaded by openclaw (directory mount avoids EBUSY inode locks)
+      # Config — edit on host, consumed by the selected orchestrator via /config.
       - ../secrets:/config
-      # State — all openclaw databases, agent sandboxes, sessions, downloaded files
+      # State — orchestrator databases, sessions, sandboxes, browser caches, downloads
       # This is your backup: ~/projects/nyx/data/ on Mac
       - ../data:/data
     env_file:
