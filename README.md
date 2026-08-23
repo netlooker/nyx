@@ -2,18 +2,19 @@
 
 > *Ghost in the grid. Your AI agent, your hardware, your rules.*
 
-Nyx is a Docker Compose deployment chassis for [OpenClaw](https://openclaw.ai) — an autonomous AI agent that lives on **your** infrastructure, speaks over Telegram and WhatsApp, and thinks with whatever inference engine you point it at.
+Nyx is a Docker Compose deployment chassis for [OpenClaw](https://openclaw.ai) or [Hermes Agent](https://github.com/NousResearch/hermes-agent) — autonomous agents that live on **your** infrastructure and think with whatever inference engine you point them at.
 
 No cloud subscriptions. No data leaving your rack. No surprises.
 
-The runtime image is a plain Debian-based container. OpenClaw and Qwen Code are installed with npm, Synapse/Sonar/Scrapling are installed with uv, and selected versions are captured in Docker labels plus `/app/build-info.json`. Persistent state lives in mounted volumes, so rebuilds do not wipe agent memory, sessions, tool config, or browser backends.
+The runtime image is a plain Debian-based container. OpenClaw and Qwen Code are installed with npm, Hermes/Synapse/Sonar/Scrapling are installed with uv, and selected versions are captured in Docker labels plus `/app/build-info.json`. Persistent state lives in mounted volumes, so rebuilds do not wipe agent memory, sessions, tool config, or browser backends.
 
-## Dual-Agent Architecture
+## Orchestrator Architecture
 
-- **OpenClaw** — the primary agent. Handles conversations, messaging channels, tool use, and long-running tasks.
-- **Qwen Code** — a headless sub-agent. OpenClaw delegates heavy or independent tasks to Qwen via CLI (`qwen -p "task" --output-format text`).
+- **OpenClaw** — orchestrator option for conversations, messaging channels, tool use, and long-running tasks.
+- **Hermes Agent** — orchestrator option for gateway conversations, MCP integrations, toolsets, and long-running tasks.
+- **Qwen Code** — a headless sub-agent. OpenClaw and Hermes can delegate heavy or independent tasks to Qwen via CLI.
 
-Both agents share the same local inference server: llama.cpp, Ollama, or any OpenAI-compatible endpoint.
+All agents share the same local inference server: llama.cpp, Ollama, or any OpenAI-compatible endpoint.
 
 ## Clone, Config, Build, Run
 
@@ -27,16 +28,23 @@ git clone <this-repo> && cd nyx
 Create local config under the gitignored `secrets/` directory:
 
 ```bash
+mkdir -p secrets
 cp container/openclaw.json5.example secrets/openclaw.json5
+cp container/hermes.yaml.example secrets/hermes.yaml
+cp container/hermes.env.example secrets/hermes.env
 cp container/qwen.json5.example secrets/qwen-settings.json
 # optional overrides
 cp container/synapse.toml.example secrets/synapse.toml
 cp container/sonar.toml.example secrets/sonar.toml
+printf 'NYX_ORCHESTRATOR=openclaw\n' > secrets/.env
 $EDITOR secrets/openclaw.json5
+$EDITOR secrets/hermes.yaml
 $EDITOR secrets/qwen-settings.json
 ```
 
-`openclaw.json5` is the primary config. `qwen-settings.json` configures the Qwen Code sub-agent. Prefer absolute MCP command paths such as `/usr/local/bin/sonar-mcp` and `/usr/local/bin/synapse-mcp`.
+Set `NYX_ORCHESTRATOR=openclaw` or `NYX_ORCHESTRATOR=hermes` in `secrets/.env`.
+
+`openclaw.json5` configures OpenClaw mode. `hermes.yaml` and `hermes.env` configure Hermes mode. `qwen-settings.json` configures the Qwen Code sub-agent. Prefer absolute MCP command paths such as `/usr/local/bin/sonar-mcp` and `/usr/local/bin/synapse-mcp`.
 
 Build and run:
 
@@ -46,7 +54,7 @@ just up
 just logs
 ```
 
-The dashboard is available at `http://localhost:18789` when gateway binding/auth are enabled in config.
+The OpenClaw dashboard is available at `http://localhost:18789` when gateway binding/auth are enabled in config. Hermes mode does not expose a Nyx-managed dashboard in this pass.
 
 ## Version Selection
 
@@ -54,10 +62,11 @@ Tracked defaults live in `versions.env`:
 
 ```dotenv
 NODE_MAJOR=22
-UV_VERSION=0.11.2
+UV_VERSION=0.12.5
 OPENCLAW_VERSION=latest
 QWEN_CODE_VERSION=latest
 SCRAPLING_VERSION=latest
+HERMES_REF=main
 SYNAPSE_REF=main
 SONAR_REF=main
 ```
@@ -68,7 +77,7 @@ SONAR_REF=main
 
 | Host | Container | Purpose |
 |---|---|---|
-| `secrets/` | `/config` | Hot-reloadable config |
+| `secrets/` | `/config` | Orchestrator config and local overrides |
 | `data/` | `/data` | Agent state, sessions, sandboxes, gh auth, Scrapling browser caches |
 
 `just up` also starts a private `searxng` sidecar on the internal compose network. Sonar reaches it at `http://searxng:8080`.
@@ -82,7 +91,7 @@ versions.env            — build selectors resolved by just
 container/
   Dockerfile            — Debian runtime + npm/uv installed tools
   docker-compose.yml    — volume mounts, ports, build args, env_file
-  entrypoint.sh         — workspace/config setup before OpenClaw starts
+  entrypoint.sh         — workspace/config setup before the selected orchestrator starts
   *.example             — config templates
   searxng/settings.yml  — private SearXNG sidecar defaults
   WORKSPACE.md          — seeded into /data/workspace on first boot

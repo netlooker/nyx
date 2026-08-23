@@ -10,7 +10,17 @@
       model: {
         // primary: 'llamacpp/your-model.gguf',
       },
-      // contextTokens: 131072,  // effective context budget (≤ model's contextWindow)
+      // contextTokens: 131072,  // align with the reduced Nyx llama.cpp launcher budget
+      // timeoutSeconds: 1800,   // fail stuck long-running requests sooner
+      // compaction: {
+      //   mode: 'safeguard',
+      //   reserveTokens: 26214,  // ~20% reserve on a 131072-token budget; compaction starts around 80% usage
+      //   truncateAfterCompaction: true,
+      //   maxActiveTranscriptBytes: 3000000,
+      //   maxHistoryShare: 0.6,
+      //   midTurnPrecheck: { enabled: true },
+      //   memoryFlush: { enabled: true },
+      // },
       // Route image requests to a vision-capable model.
       // Enable if your llama.cpp server is loaded with --mmproj (vision projector).
       // imageModel: {
@@ -31,7 +41,7 @@
         // OpenClaw's guarded transport is used for streaming usage metadata.
         // request: { allowPrivateNetwork: true },
         // models: [
-        //   { id: 'your-model.gguf', name: 'Local Model' },
+        //   { id: 'your-model.gguf', name: 'Local Model', contextWindow: 131072, maxTokens: 12288 },
         // ],
       },
       // Or use cloud providers

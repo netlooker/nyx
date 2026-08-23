@@ -28,6 +28,7 @@ jobs:
           echo "$labels"
           echo "$labels" | grep -q '"io.github.netlooker.nyx.build-info":"/app/build-info.json"'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.openclaw.version":'
+          echo "$labels" | grep -q '"io.github.netlooker.nyx.hermes.version":'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.qwen-code.version":'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.scrapling.version":'
           echo "$labels" | grep -q '"io.github.netlooker.nyx.synapse.version":'

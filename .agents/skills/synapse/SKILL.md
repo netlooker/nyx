@@ -1,271 +1,214 @@
 ---
 name: synapse
-description: Semantic search, discovery, reasoning, and compiled-knowledge ingest/review over markdown vaults via Synapse MCP tools.
+description: Semantic search, discovery, reasoning, research-bundle ingest, and compiled-knowledge review over markdown vaults via Synapse MCP tools.
 user-invocable: true
 disable-model-invocation: false
 ---
 
 # Synapse MCP
 
-Synapse is a semantic retrieval, discovery, and compiled-knowledge engine for markdown knowledge bases. It indexes markdown folders into vector embeddings, exposes search/discovery/validation/reasoning over MCP, and — when the knowledge layer is enabled — ingests prepared research bundles into reviewable `source_summary` proposals that operators apply into a managed subtree of the vault.
+Synapse is a semantic retrieval, discovery, and compiled-knowledge engine for markdown knowledge bases. It indexes markdown folders into embeddings, exposes deterministic search and validation over MCP, and can ingest prepared research bundles into reviewable `source_summary` proposals under a managed knowledge subtree.
 
-In Nyx, Synapse is installed into the Docker image with `uv tool install`. The
-host does not need a separate Synapse or Python environment.
+In Nyx, Synapse is installed into the container with `uv tool install`. The host does not need a separate Python or Synapse install.
 
 ## Available tools
 
-### Deterministic retrieval (no LLM required)
+### Deterministic retrieval
 
 | Tool | Purpose | Key params |
 |------|---------|------------|
-| `synapse_health` | Check runtime readiness, DB status, provider config | — |
+| `synapse_health` | Check runtime readiness, DB status, provider config | optional overrides |
 | `synapse_index` | Index a markdown folder into the vector store | `vault_root`, `db_path` |
-| `synapse_search` | Semantic search across indexed content | `query`, `mode` (note/chunk/hybrid), `limit` |
+| `synapse_search` | Semantic search across indexed content | `query`, `mode`, `limit` |
+| `synapse_discover` | Find unlinked but semantically related documents | `threshold`, `max_total` |
+| `synapse_validate` | Report broken `[[wikilinks]]` in indexed vault | optional overrides |
 | `synapse_health_for_workspace` | Check readiness for the configured active workspace | `workspace` |
 | `synapse_index_for_workspace` | Index the configured active workspace | `workspace` |
 | `synapse_search_for_workspace` | Search the configured active workspace | `workspace`, `query`, `mode`, `limit` |
-| `synapse_discover` | Find unlinked but semantically related documents | `threshold`, `max` |
-| `synapse_validate` | Report broken `[[wikilinks]]` in indexed vault | — |
 
-### Local-model "simple" facade
+### Strict-shape local-model facade
 
-These are strict-shape variants for weaker runtimes: top-level plain-string args only, no nested objects, mode defaults to `research`.
+These are reduced-shape variants for weaker runtimes: top-level plain string args only.
 
 | Tool | Purpose | Required params |
 |------|---------|-----------------|
 | `synapse_health_simple` | Minimal health probe | `vault_root`, `db_path` |
 | `synapse_index_simple` | Minimal index call | `vault_root`, `db_path` |
-| `synapse_search_simple` | Minimal search call (optional `mode`) | `query`, `db_path` |
+| `synapse_search_simple` | Minimal search call | `query`, `db_path` |
 
-### Reasoning (requires configured model via Cipher)
+### Reasoning via Cipher
 
 | Tool | Purpose | Key params |
 |------|---------|------------|
-| `synapse_cipher_health` | Report Cipher runtime requirements and readiness | optional overrides only |
-| `synapse_cipher_audit` | Audit vault integrity (broken links, stale docs) | `mode` |
+| `synapse_cipher_health` | Report Cipher runtime requirements and readiness | optional overrides |
+| `synapse_cipher_audit` | Audit vault integrity | `mode` |
 | `synapse_cipher_explain` | Explain why two documents are related | `doc_a`, `doc_b` |
-| `synapse_cipher_chunking_strategy` | Recommend chunking parameters for a model | — |
-| `synapse_cipher_review_stubs` | Review proposed stub notes before creation | — |
+| `synapse_cipher_chunking_strategy` | Recommend chunking parameters for a model | optional overrides |
+| `synapse_cipher_review_stubs` | Review proposed stub notes before creation | candidates |
 
-### Compiled knowledge layer (opt-in, Synapse v0.3.x)
+### Compiled knowledge layer
 
-Feature-gated: every tool below raises a structured bad-request error unless `[knowledge].enabled = true` (or `SYNAPSE_KNOWLEDGE_ENABLED=true`). In Nyx this is enabled by default in both `container/synapse.toml.example` and the active `secrets/synapse.toml` override — nothing to toggle at the call site.
+Feature-gated: these tools require `[knowledge].enabled = true` or `SYNAPSE_KNOWLEDGE_ENABLED=true`. In Nyx this is normally enabled in the active Synapse config.
 
 | Tool | Purpose | Required params |
 |------|---------|-----------------|
-| `synapse_ingest_bundle` | Ingest a prepared research source bundle JSON (typically from `sonar_collect_sources_for_topic` / `sonar_prepare_paper_set`) | `bundle_path` |
+| `synapse_ingest_bundle` | Ingest a prepared research source bundle JSON | `bundle_path` |
 | `synapse_knowledge_overview` | Managed-root status, counts, recent proposals | — |
 | `synapse_knowledge_compile_bundle` | Turn an ingested bundle into pending `source_summary` proposals | `bundle_id` |
-| `synapse_knowledge_list_proposals` | Filter the review queue by `status` (pending / applied / rejected) | — |
-| `synapse_knowledge_get_proposal` | Full proposal detail: frontmatter, body, refs, reviewer action | `proposal_id` |
-| `synapse_knowledge_apply_proposal` | Write the managed note, update `index.md` / `log.md`, reindex | `proposal_id` |
-| `synapse_knowledge_reject_proposal` | Mark a proposal rejected, append reason to `log.md` | `proposal_id` (optional `reason`) |
-| `synapse_knowledge_bundle_detail` | Bundle metadata + per-source proposal/applied counts | `bundle_id` |
+| `synapse_knowledge_list_proposals` | Filter review queue by `status` | optional `status`, `limit` |
+| `synapse_knowledge_get_proposal` | Full proposal detail | `proposal_id` |
+| `synapse_knowledge_apply_proposal` | Apply a pending proposal | `proposal_id` |
+| `synapse_knowledge_reject_proposal` | Reject a pending proposal and append reason to `log.md` | `proposal_id` |
+| `synapse_knowledge_revert_proposal` | Revert an applied proposal back to pending review | `proposal_id` |
+| `synapse_knowledge_bundle_detail` | Bundle metadata plus per-source proposal counts | `bundle_id` |
 | `synapse_knowledge_source_detail` | Normalized source metadata, stored segments, related proposals | `bundle_id`, `source_id` |
 
-All nine tools wrap the same `service_api` entry points the admin console drives, so MCP-driven and human-driven reviews share a single code path.
+These tools share the same service path as the HTTP admin surface, so operator actions and MCP actions stay in one audit trail.
 
-## Workflow: always retrieval first
+## Retrieval workflow
 
-### Preferred for weaker/local models: workspace facade first
+Preferred path for weaker local models:
 
-1. Use `synapse_health_for_workspace(workspace="current")`
-2. Use `synapse_index_for_workspace(workspace="current")`
-3. Use `synapse_search_for_workspace(workspace="current", mode="hybrid", query="...")`
+1. `synapse_health_for_workspace(workspace="current")`
+2. `synapse_index_for_workspace(workspace="current")`
+3. `synapse_search_for_workspace(workspace="current", query="...", mode="research")`
 
-This is the default path for weaker local runtimes because it removes raw path
-arguments from the model-facing surface.
+Canonical explicit-path path:
 
-### Canonical path-bearing workflow
+1. Run `synapse_health`
+2. Run `synapse_index` if the DB is missing or stale
+3. Run `synapse_search`
+4. Run `synapse_discover` if you need hidden cross-note links
+5. Run `synapse_cipher_*` only after deterministic evidence exists
 
-Use `synapse_health`, `synapse_index`, and `synapse_search` with explicit
-`vault_root` and `db_path` only when you need exact path control.
-
-1. **Check health** before any operation: `synapse_health`
-2. **Index** if the DB is missing or stale: `synapse_index`
-3. **Search** for user-facing retrieval: `synapse_search` with `mode: hybrid`
-4. **Discover** for hidden connections: `synapse_discover` with explicit threshold
-5. **Reason** only after deterministic evidence is gathered: `synapse_cipher_*`
-
-Do not call Cipher tools before gathering evidence via search or discovery.
-
-## Workflow: compiled knowledge review
-
-When the goal is to build a curated, reviewable corpus from upstream Sonar artifacts, use the knowledge layer instead of writing raw notes by hand:
-
-1. **Prepare upstream evidence** — run `sonar_collect_sources_for_topic` (or `sonar_prepare_paper_set`) and note the persisted `bundle_path` (e.g. `/data/workspace/vault/_sources/<run>/prepared_source_bundle.json`).
-2. **Ingest** — `synapse_ingest_bundle(bundle_path=...)`. Returns the `bundle_id` used by every subsequent call.
-3. **Compile** — `synapse_knowledge_compile_bundle(bundle_id=...)`. Produces `source_summary` proposals in `pending` state.
-4. **Review** — `synapse_knowledge_list_proposals(status="pending")`, then `synapse_knowledge_get_proposal(proposal_id=...)` for each candidate. Use `synapse_knowledge_bundle_detail` / `synapse_knowledge_source_detail` to cross-check provenance before acting.
-5. **Apply or reject** — `synapse_knowledge_apply_proposal(proposal_id=...)` writes the managed note under `<vault_root>/<managed_root>/`, updates `index.md` + `log.md`, and reindexes. `synapse_knowledge_reject_proposal(proposal_id=..., reason=...)` records the decision without touching the managed note.
-6. **Status check anytime** — `synapse_knowledge_overview` for top-level counts and recent activity.
-
-Guardrails:
-- Never hand-edit files under the managed root (`_knowledge/` by default). The layer expects every write to go through apply/reject so `index.md` and `log.md` stay consistent and reindex runs after each mutation.
-- `auto_compile_on_ingest = false` is the Nyx default — ingest and compile are explicit, separate steps. This is deliberate so operators can stage bundles before paying the compile cost.
-- Rejected proposals stay inspectable via `status="rejected"` — they are an audit trail, not a garbage bin.
+Do not start with Cipher when retrieval can answer the question.
 
 ## Search modes
 
-- **`note`**: broad thematic retrieval, returns full documents ranked by similarity
-- **`chunk`**: precise section-level retrieval, returns specific passages
-- **`hybrid`** (recommended): combines note shortlist + chunk evidence, weighted 40/60
+Use the real Synapse search modes:
 
-Always prefer `hybrid` unless the user specifically needs document-level or section-level results.
+- `research`: blended source-first retrieval, usually the default and best starting point
+- `source`: return source-oriented matches
+- `note`: return note-oriented matches
+- `evidence`: return narrow evidence matches
 
-## Discovery thresholds
+Prefer `research` unless the user explicitly wants note-only or evidence-only behavior.
 
-Discovery scoring: `min(1.0, 0.75 * semantic + metadata_score + graph_score)`
+## Compiled knowledge workflow
 
-- Service default threshold: `0.20` (sensitive, returns more connections)
-- CLI default threshold: `0.65` (conservative)
-- Always set threshold explicitly — do not rely on surface-specific defaults
-- Start with `0.20` for exploration, raise to `0.40-0.65` for high-confidence links
+When the goal is to build a curated, reviewable corpus from Sonar or other upstream artifacts:
+
+1. Prepare or locate a persisted bundle artifact.
+2. Ingest it with `synapse_ingest_bundle(bundle_path=...)`.
+3. Compile it with `synapse_knowledge_compile_bundle(bundle_id=...)`.
+4. Review proposals with `synapse_knowledge_list_proposals` and `synapse_knowledge_get_proposal`.
+5. Apply, reject, or revert with the `synapse_knowledge_*_proposal` tools.
+6. Use `synapse_knowledge_overview` or bundle/source detail tools for status and provenance checks.
+
+Guardrails:
+
+- Never hand-edit files under the managed root.
+- `synapse_knowledge_apply_proposal` is the only supported path to create managed notes.
+- `synapse_knowledge_revert_proposal` is the supported path to undo an applied note while preserving audit history.
+- Rejected proposals remain part of the audit trail.
+
+## Bundle ingest guidance
+
+Synapse ingest is intentionally more tolerant than older revisions:
+
+- manual bundles may omit optional fields like `document_id`, `search_score`, `direct_paper_url`, or `published`
+- a bundle may provide `sources`, `prepared_sources`, or a single `source`
+- a source may provide raw text via `text`, `content`, `body`, or `markdown`
+
+Deduplication behavior:
+
+- ingest now checks duplicate sources by normalized URL identity and content hash
+- duplicate sources are skipped by default instead of reinserted
+- pass `replace_existing=true` to `synapse_ingest_bundle` when you want a duplicate source to replace the previously ingested one
+
+## Embedding behavior
+
+Synapse no longer hard-fails solely because the primary Infinity endpoint is unreachable:
+
+- it tries the configured provider first
+- if a compatible named `fallback` provider exists, it tries that next
+- if remote providers fail, it falls back to a purely local in-process embedding adapter
+
+This preserves indexing and search availability during provider outages, though search quality may degrade relative to the primary model.
 
 ## Practical patterns
 
-### Search for a topic
-```
-synapse_search(query="rate limiting patterns", mode="hybrid", limit=10)
+### Search a workspace
+
+```text
+synapse_search_for_workspace(workspace="current", query="rate limiting patterns", mode="research", limit=10)
 ```
 
-### Search the active workspace
-```
-synapse_search_for_workspace(query="rate limiting patterns", workspace="current", mode="hybrid", limit=10)
+### Search a specific DB directly
+
+```text
+synapse_search(query="rate limiting patterns", mode="research", limit=10)
 ```
 
-### Find hidden connections in a vault
-```
-synapse_discover(threshold=0.20, max=20)
+### Find hidden connections
+
+```text
+synapse_discover(threshold=0.20, max_total=20)
 ```
 
-### Full reindex after adding notes
-```
-synapse_index(vault_root="/data/workspace/vault", db_path="/data/workspace/vault/.synapse.sqlite")
-```
+### Ingest and review a bundle
 
-### Audit before maintenance
-```
-synapse_cipher_audit(mode="audit")
-```
-
-### Explain a discovered relationship
-```
-synapse_cipher_explain(doc_a="notes/topic-a.md", doc_b="notes/topic-b.md")
-```
-
-### Ingest a Sonar bundle and review its proposals
-```
+```text
 synapse_ingest_bundle(bundle_path="/data/workspace/vault/_sources/<run>/prepared_source_bundle.json")
-# → returns bundle_id
-synapse_knowledge_compile_bundle(bundle_id="<id>")
-# → creates pending source_summary proposals
+synapse_knowledge_compile_bundle(bundle_id="<bundle_id>")
 synapse_knowledge_list_proposals(status="pending")
-synapse_knowledge_get_proposal(proposal_id="<pid>")
-synapse_knowledge_apply_proposal(proposal_id="<pid>")
+synapse_knowledge_get_proposal(proposal_id=123)
+synapse_knowledge_apply_proposal(proposal_id=123)
 ```
 
-### Status snapshot for the compiled knowledge layer
+### Replace an already ingested duplicate source
+
+```text
+synapse_ingest_bundle(bundle_path="/data/workspace/vault/_sources/<run>/prepared_source_bundle.json", replace_existing=true)
 ```
-synapse_knowledge_overview()
+
+### Undo an applied compiled note
+
+```text
+synapse_knowledge_revert_proposal(proposal_id=123)
 ```
 
 ## Configuration
 
-Synapse is installed into the Docker image under `/usr/local/bin`
-(`/usr/local/bin/synapse-mcp`, `/usr/local/bin/synapse-index`,
-`/usr/local/bin/synapse-search`, `/usr/local/bin/synapse-ingest-bundle`, etc.).
-Those binaries are also exported on PATH, but Nyx prefers absolute paths in
-config. Version selection lives in `versions.env`; `just build` resolves the
-configured ref before Docker installs it.
+Synapse binaries live under `/usr/local/bin` in the Nyx container. The active config is selected by `SYNAPSE_CONFIG`.
 
-The active config is selected by the `SYNAPSE_CONFIG` env var:
+Common sections:
 
-- Image default: `/app/synapse.toml.default` (shipped with the container)
-- User override: drop a `secrets/synapse.toml` on the host → bind-mounted at
-  `/config/synapse.toml` and picked up automatically by `entrypoint.sh`
-
-Key config sections:
-
-- `[vault]`: markdown folder root (defaults to `/data/workspace/vault`)
+- `[vault]`: markdown folder root
 - `[database]`: SQLite path
-- `[providers.embeddings.*]`: embedding model endpoints
-- `[cipher]`: reasoning model timeouts
-- `[knowledge]`: compiled knowledge layer toggle (`enabled`, `managed_root`,
-  `default_status`, `generated_by`, `auto_compile_on_ingest`) — Nyx ships with
-  `enabled = true` and `managed_root = "_knowledge"`. Override at runtime via
-  `SYNAPSE_KNOWLEDGE_ENABLED=true|false`.
+- `[providers.embeddings.*]`: embedding providers
+- `[cipher]`: reasoning timeouts
+- `[knowledge]`: compiled knowledge layer settings
 
-MCP server registration (already wired in `container/qwen.json5.example`):
-```json
-{
-  "mcpServers": {
-    "synapse": {
-      "command": "/usr/local/bin/synapse-mcp",
-      "env": { "SYNAPSE_MCP_TRANSPORT": "stdio" },
-      "trust": true
-    }
-  }
-}
-```
-`SYNAPSE_CONFIG` is inherited from the container environment, so the MCP
-entry does not need to re-specify it.
+Important knobs:
+
+- `[knowledge].enabled`
+- `[knowledge].managed_root`
+- `[knowledge].auto_compile_on_ingest`
+- `[index].provider`
+- `[index].contextual_provider`
+- `[search].provider`
 
 ## Local-model guidance
 
-- Prefer `*_for_workspace` tools first for Qwen, Gemma, and other weaker local
-  runtimes
-- Treat raw-path tools as advanced overrides, not as the default agent path
-- For notes intended for indexing, include both metadata fields and a Markdown
-  `# Title` heading so indexed `documents.title` is populated reliably
-- When building a corpus from retrieved sources, write notes from persisted
-  Sonar artifacts rather than from memory of a prior tool result
-- For weaker local-model workflows, use this read order before note writing:
-  1. `prepared_sources_bundle.md`
-  2. `prepared_source_manifest.json`
-  3. only the specific `source_XX.json` or `source_XX.txt` files you need
-  4. the full `prepared_source_bundle.json` only if the compact manifest is
-     missing or clearly inconsistent
-- Prefer Sonar `abstract` and `full_text` fields over lossy transcript snippets
-  when preparing Synapse-ready notes
-- Prefer `mode="hybrid"` unless the task clearly needs note-only or chunk-only retrieval
-- Stage work explicitly:
-  1. confirm the prepared source set from compact artifacts
+- Prefer `*_for_workspace` tools first for weaker local runtimes
+- Treat raw-path tools as explicit overrides, not defaults
+- Use `research` mode unless you have a reason not to
+- For note writing from source bundles, read compact manifest artifacts first and load full bundle JSON only when necessary
+- Build the corpus in stages:
+  1. confirm source set
   2. health
-  3. write notes
+  3. ingest or write
   4. index
   5. search
   6. optional reasoning
-- Keep the query semantic and precise; avoid overloading one search with many unrelated questions
-
-Recommended note skeleton for indexed markdown:
-```
-TEST_ID: ...
-QUERY: ...
-SOURCE_URL: ...
-TITLE: ...
-AUTHORS: ...
-PUBLISHED: ...
-RETRIEVED_AT: ...
-
-# Actual Document Title
-
-## Abstract
-...
-
-## Extract
-...
-
-## Why Selected
-...
-```
-
-## Important constraints
-
-- For hybrid retrieval, note and contextual embedding providers must use matching dimensions
-- Content-hash based change detection — unchanged files are skipped during reindex
-- Reusing the same DB across different vault roots can leave stale documents
-- Synapse works best when upstream source bundles preserve provenance and full text;
-  if Sonar artifacts exist, prefer them over ad hoc summaries
-- `synapse_cipher_audit` is deterministic; other Cipher tools require a reasoning model
-- Discovery thresholds are corpus-dependent — tune for your vault size

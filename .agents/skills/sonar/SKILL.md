@@ -10,6 +10,12 @@ metadata: {"openclaw": {"requires": {"bins": ["sonar-mcp"]}}}
 
 Sonar is a deterministic live-web evidence engine. It searches the web through a private SearXNG instance, ranks and deduplicates results, fetches URLs while respecting robots.txt, and extracts readable text. No LLM inside — all mechanics are transparent and reproducible.
 
+Recent Sonar behavior that matters operationally:
+
+- PDF responses and direct `.pdf` URLs are extracted with `pymupdf`
+- extracted PDF body text now flows into prepared bundle `full_text`
+- `sonar_collect_sources_for_topic` now applies a semantic relevance filter over collected source abstracts and summaries before returning the final bundle when embeddings are configured
+
 In Nyx, Sonar is installed into the Docker image with `uv tool install`. The
 host does not need a separate Sonar or Python environment.
 
@@ -45,6 +51,11 @@ material, not as disposable tool output. High-level preparation now auto-persist
 durable artifacts by default. Large tool payloads can still be truncated in
 transcripts, so downstream note-writing should read the persisted bundle and
 sidecars rather than rely on transcript retention.
+
+For topic-driven research, prefer `sonar_collect_sources_for_topic` over manual
+search loops when you want Sonar to prune false positives automatically. It now
+over-collects candidates and drops low-similarity sources with an embeddings
+pass before persisting the final bundle.
 
 Preferred read order for weaker local models:
 
@@ -112,6 +123,10 @@ sonar_prepare_paper_set(query="prompt engineering scientific papers", count=5, p
 sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
 ```
 
+Use this when broad keyword matching would likely admit off-topic papers. The
+topic flow now has a semantic post-filter, so it is the safer default for
+query-driven paper collection.
+
 ### Persist the prepared source set before note writing
 ```
 bundle = sonar_collect_sources_for_topic(topic="prompt engineering", max_results=5, corpus="papers")
@@ -131,6 +146,10 @@ source_02.txt
 High-level preparation now writes a compact summary/manifest handoff as well as
 the canonical full bundle and optional sidecars. For local-model workflows,
 prefer the summary and compact manifest over the full bundle blob.
+
+When a prepared source is PDF-backed, expect the extracted paper body to be in
+`full_text` or the text sidecar rather than falling back to metadata-only
+bundle content.
 
 ### Search for a topic
 ```
@@ -179,8 +198,22 @@ Key config sections:
 - `[cache]`: TTLs for search and extract results
 - `[fetch]`: timeouts, max body size, user agent
 - `[search]`: default and max result limits
+- `[embeddings]`: semantic topic-filter provider settings for `sonar_collect_sources_for_topic`
 - `[ranking.domain_priors]`: per-domain score bonuses
 - `[secrets]`: path to secrets overlay for SearXNG auth
+
+Important embeddings settings:
+
+- `embeddings.enabled`
+- `embeddings.base_url`
+- `embeddings.model`
+- `embeddings.similarity_threshold`
+- `SONAR_EMBEDDINGS_API_KEY` or `OPENAI_API_KEY` for provider auth
+
+If embeddings are missing or the provider fails, `sonar_collect_sources_for_topic`
+still returns results, but the semantic post-filter is skipped and Sonar emits a
+warning. Do not assume topic bundles were semantically pruned unless you inspect
+the warning list or know the runtime is configured.
 
 MCP server registration (already wired in `container/qwen.json5.example`):
 ```json
@@ -234,6 +267,11 @@ fields when writing notes or auditing a run.
 Direct-document candidates such as PDFs are now part of the normal high-level
 preparation flow when the format is supported. Do not assume PDF-first academic
 sources will be skipped.
+
+For topic collection specifically, treat the final returned bundle as the
+post-filtered truth set. Sonar may search and prepare more candidates than the
+final `selected_count`, then prune low-relevance items before returning the
+bundle you see.
 
 ## Important constraints
 

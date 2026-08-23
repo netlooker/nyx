@@ -1,0 +1,45 @@
+# Nyx — Hermes Agent configuration
+# Copy to secrets/hermes.yaml and fill in your values.
+# The secrets/ directory is gitignored — your credentials stay local.
+
+model:
+  provider: custom
+  default: "your-model.gguf"
+  base_url: "http://192.168.1.x:8008/v1"
+  api_key: "local_inference"
+  context_length: 131072
+  max_tokens: 12288
+
+terminal:
+  backend: local
+  cwd: "/data/workspace"
+  timeout: 180
+  lifetime_seconds: 300
+
+platform_toolsets:
+  cli: [hermes-cli]
+  telegram: [hermes-telegram]
+  discord: [hermes-discord]
+  whatsapp: [hermes-whatsapp]
+  slack: [hermes-slack]
+  signal: [hermes-signal]
+  homeassistant: [hermes-homeassistant]
+  qqbot: [hermes-qqbot]
+  yuanbao: [hermes-yuanbao]
+  teams: [hermes-teams]
+  google_chat: [hermes-google_chat]
+
+mcp_servers:
+  synapse:
+    command: /usr/local/bin/synapse-mcp
+    env:
+      SYNAPSE_MCP_TRANSPORT: "stdio"
+      SYNAPSE_CONFIG: "/config/synapse.toml"
+  sonar:
+    command: /usr/local/bin/sonar-mcp
+    env:
+      SONAR_MCP_TRANSPORT: "stdio"
+      SONAR_CONFIG: "/config/sonar.toml"
+  scrapling:
+    command: /usr/local/bin/scrapling
+    args: ["mcp"]
