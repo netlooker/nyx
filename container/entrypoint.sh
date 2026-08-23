@@ -12,6 +12,12 @@ export PATH=/usr/local/bin:/usr/bin:/bin
 # Seed workspace instructions on first boot (won't overwrite edits)
 [ ! -f /data/workspace/WORKSPACE.md ] && cp /app/WORKSPACE.md /data/workspace/WORKSPACE.md
 
+# Configure git credential helper from persistent /data/gh auth so git push/pull works automatically.
+export GH_CONFIG_DIR=/data/gh
+if [ -f /data/gh/hosts.yml ]; then
+  gh auth setup-git 2>/dev/null || true
+fi
+
 # Symlink ephemeral tool config dirs into the persistent /data volume.
 # qwen-code: hardcodes $HOME/.qwen, no env override available
 mkdir -p /data/qwen
